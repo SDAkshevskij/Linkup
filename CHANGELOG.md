@@ -2,6 +2,7 @@
 
 ## Planned next release (not implemented)
 - Owner prioritized stable APK signing, GitHub Releases and in-app updates on Android/Linux with upgrade/data preservation tests. Android cloud connection feedback is also a P0 issue. See TASKS.md.
+- Planned mobile UI fixes: system bars/shade and keyboard must not cover controls; portrait/landscape and rotation must preserve open dialogs and unsaved state; replace intrusive default scrollbar with a minimal dark-themed style. Add regression tests. Not implemented yet.
 
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.
