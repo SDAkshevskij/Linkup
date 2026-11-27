@@ -1,0 +1,24 @@
+# Local configuration and signing material
+.env
+.env.*
+!.env.example
+local.properties
+*.jks
+*.keystore
+*.p12
+*.pem
+*.apk
+*.aab
+*.sqlite
+*.sqlite3
+*.db
+# Build and IDE output
+.gradle/
+**/build/
+.idea/
+*.iml
+node_modules/
+__pycache__/
+*.py[cod]
+android-logcat.txt
+.DS_Store
