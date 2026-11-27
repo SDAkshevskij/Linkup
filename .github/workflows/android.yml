@@ -1,16 +1,25 @@
 name: LinkUp Android CI
 on:
   workflow_dispatch:
+  workflow_call:
   push:
     paths:
       - 'linkup-v0.2.0/android/**'
       - 'linkup-v0.2.0/ui/**'
+      - 'linkup-v0.2.0/linux/**'
+      - 'linkup-v0.2.0/tools/**'
+      - 'linkup-v0.2.0/version.properties'
+      - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
       - 'linkup-v0.2.0/android/**'
       - 'linkup-v0.2.0/ui/**'
+      - 'linkup-v0.2.0/linux/**'
+      - 'linkup-v0.2.0/tools/**'
+      - 'linkup-v0.2.0/version.properties'
+      - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
       - '.github/workflows/android.yml'
 permissions:
@@ -21,6 +30,8 @@ jobs:
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -33,7 +44,7 @@ jobs:
           gradle-version: '8.9'
       - name: Shared logic tests
         working-directory: linkup-v0.2.0
-        run: node --test tests/test_activity.mjs tests/test_cloud.mjs
+        run: node --test tests/*.mjs
       - name: Set up Android SDK 35
         uses: android-actions/setup-android@v3
         with:
@@ -54,7 +65,7 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: bash -c 'cd linkup-v0.2.0/android; gradle :app:connectedDebugAndroidTest; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
+          script: bash -c 'cd linkup-v0.2.0/android; gradle :app:connectedDebugAndroidTest && bash ../tools/test-android-upgrade.sh; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
       - name: Test reports and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -72,3 +83,19 @@ jobs:
           name: LinkUp-Android-debug
           path: linkup-v0.2.0/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+  linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Qt WebEngine test dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri
+      - name: Linux agent and packaged upgrade tests
+        working-directory: linkup-v0.2.0
+        env:
+          LIBGL_ALWAYS_SOFTWARE: "1"
+          QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
+          LINKUP_TEST_WEBENGINE: '1'
+        run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v

@@ -1,10 +1,11 @@
 import {all,get,put,del,saveItem,removeItem,consumeInbox} from './db.js';
 import {Supabase,Drive,YandexDrive} from './cloud.js';
+import {projectUrl,signIn,verifyDisk} from './cloud-settings.js';
 import {native,initActivity} from './activity.js';
 const $=id=>document.getElementById(id);const icon=name=>`<svg aria-hidden="true"><use href="#i-${name}"/></svg>`;const read=(k,f)=>{try{return JSON.parse(localStorage.getItem(k))??f}catch{return f}};const write=(k,v)=>localStorage.setItem(k,JSON.stringify(v));
 if(!crypto.randomUUID)crypto.randomUUID=()=>{const a=crypto.getRandomValues(new Uint8Array(16));a[6]=(a[6]&15)|64;a[8]=(a[8]&63)|128;return [...a].map((x,i)=>([4,6,8,10].includes(i)?'-':'')+x.toString(16).padStart(2,'0')).join('')};
 const mobile=/Android|iPhone|iPad/i.test(navigator.userAgent);let config=read('linkup.config',{deviceName:mobile?'Телефон':'Компьютер',deviceId:crypto.randomUUID(),url:'',key:'',email:'',googleId:''});if(!config.diskProvider)config.diskProvider=config.googleId?'google':'yandex';write('linkup.config',config);
-function makeDrive(){return config.diskProvider==='google'?new Drive(config.googleId):new YandexDrive(config.googleId);}
+function makeDrive(settings=config){return settings.diskProvider==='google'?new Drive(settings.googleId):new YandexDrive(settings.googleId);}
 let session=read('linkup.session',null), sb=null, drive=makeDrive(), scope='local', items=[],filter='all',staged=[],syncing=false,again=false,realtime=false,lastOk=false,syncError='',generation=0,progress=new Map(),toastTimer,confirmAction,viewed,retentionBusy=false,composing=false;let verifiedDrive=false;
 const size=n=>{if(n<1024)return `${n} Б`;const units=['КБ','МБ','ГБ','ТБ'];let v=n/1024,i=0;while(v>=1024&&i<3){v/=1024;i++;}return `${v>=100?Math.round(v):Number(v.toFixed(1))} ${units[i]}`};const active=()=>items.filter(x=>!x.deleted_at);const localKey=(id,s=scope)=>`${s}:${id}`;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(msg,error=false){$('toast').textContent=msg;$('toast').className=`toast${error?' error':''}`;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4200);}
@@ -17,7 +18,6 @@ function stage(files){staged.push(...files);renderStage();}function renderStage(
 function resize(){const t=$('message');t.style.height='auto';t.style.height=Math.min(t.scrollHeight,160)+'px';}
 async function send(){if(composing)return;const text=$('message').value.trim(),files=[...staged];if(!text&&!files.length)return;if(new TextEncoder().encode(text).length>1048576){toast('Текст превышает 1 МБ',true);return;}composing=true;$('send').disabled=true;const originalScope=scope;const mk=(kind,extra)=>{const id=crypto.randomUUID();return {id,key:localKey(id,originalScope),scope:originalScope,user_id:sb?.session?.user?.id||null,kind,device_id:config.deviceId,device_name:config.deviceName,created_at:new Date().toISOString(),state:sb?'new':'local',byte_size:0,...extra};};let sentText=false,sentFiles=0;try{if(text){await saveItem(mk('text',{text_content:text,byte_size:new TextEncoder().encode(text).length}));sentText=true;}for(const f of files){await saveItem(mk('file',{file_name:f.name,mime_type:f.type||'application/octet-stream',byte_size:f.size}),f);sentFiles++;}toast(sb?'Добавлено в очередь':'Сохранено');}catch(e){toast(`Не удалось сохранить: ${e.message}`,true);}finally{if(sentText)$('message').value='';staged=staged.filter(f=>!files.slice(0,sentFiles).includes(f));renderStage();resize();composing=false;$('send').disabled=false;await reload();sync();}}
 function rowOf(x){return {id:x.id,user_id:x.user_id,kind:x.kind,text_content:x.text_content??null,file_name:x.file_name??null,mime_type:x.mime_type??null,byte_size:x.byte_size,drive_id:x.drive_id??null,device_name:x.device_name,device_id:x.device_id,created_at:x.created_at};}
-async function verifyDrive(){if(!sb||!drive.ready)throw Error('Сначала подключите Supabase и Drive');const identity=drive instanceof YandexDrive?await drive.identity():await (async()=>{const d=await (await drive.request('https://www.googleapis.com/drive/v3/about?fields=user(permissionId)')).json();if(!d.user?.permissionId)throw Error('Не удалось определить аккаунт Drive');return `${drive.clientId}:${d.user.permissionId}`;})();await sb.request('linkup_disk_accounts?on_conflict=user_id,provider',{method:'POST',headers:{Prefer:'resolution=ignore-duplicates,return=minimal'},body:JSON.stringify({user_id:sb.session.user.id,provider:config.diskProvider||'yandex',drive_identity:identity})});const rows=await (await sb.request(`linkup_disk_accounts?select=drive_identity&provider=eq.${config.diskProvider||'yandex'}`)).json();if(rows[0]?.drive_identity!==identity){drive.token=null;throw Error('Нужен тот же облачный аккаунт и OAuth-приложение, что на первом устройстве');}verifiedDrive=true;}
 async function sync(force=false){if(!sb||!navigator.onLine)return;if(syncing){again=true;return;}const client=sb,runScope=scope,g=generation;syncing=true;setStatus();let fileError='';const alive=()=>g===generation&&client===sb;try{const local=(await all('items')).filter(x=>x.scope===runScope);for(let x of local){if(!alive())return;const current=await get('items',x.key);if(!current)continue;x=current;if(x.state==='delete'){try{await client.tombstone(x.id);if(x.kind==='file'&&!x.everSynced&&!x.drive_id){if(!drive.ready||!verifiedDrive)continue;const orphan=await drive.find(x.id);if(orphan)await drive.remove(orphan);}else if(x.kind==='file'&&!x.everSynced&&x.drive_id){if(!drive.ready||!verifiedDrive)continue;await drive.remove(x.drive_id);}await removeItem(x.key);}catch(e){fileError=e.message;}continue;}if(x.state!=='new')continue;try{if(x.kind==='file'&&!x.drive_id){if(!drive.ready||!verifiedDrive)continue;const blob=await get('blobs',x.key);if(!blob)throw Error('Локальный файл не найден');const id=await drive.upload(blob.blob,x,p=>{progress.set(x.id,p);render();});const latest=await get('items',x.key);if(!latest)continue;x={...latest,drive_id:id};await put('items',x);if(x.state==='delete'){again=true;continue;}}await client.insert(rowOf(x));const latest=await get('items',x.key);if(latest)await put('items',{...latest,everSynced:true,state:latest.state==='delete'?'delete':'synced'});if(latest?.state==='delete')again=true;}catch(e){fileError=e.message;}finally{progress.delete(x.id);}}if(!alive())return;const remote=await client.list();if(!alive())return;for(const x of remote){const key=localKey(x.id,runScope),current=await get('items',key);if(x.deleted_at){if(current)await removeItem(key);if(x.kind==='file'&&x.drive_id&&!x.storage_deleted_at&&verifiedDrive&&drive.ready){try{await drive.remove(x.drive_id);await client.cleanup(x.id);}catch(e){fileError=e.message;}}}else if(current?.state==='delete'){/* local deletion wins; retry on next scheduled sync */}else{await put('items',{...x,key,scope:runScope,state:'synced',everSynced:true});}}lastOk=true;syncError=fileError;if(!client.ws&&!client.connecting){client.connecting=true;client.subscribe(()=>sync(),s=>{realtime=s;client.connecting=false;setStatus();}).finally(()=>{if(!client.ws)client.connecting=false;});} }catch(e){lastOk=false;syncError=e.message;if(force)toast(e.message,true);}finally{syncing=false;if(alive()){await reload();if(force&&!syncError)toast('Синхронизировано');else if(force&&syncError)toast(syncError,true);if(again){again=false;setTimeout(()=>sync(),300);}}}}
 async function deleteItems(list){for(const x of list){const latest=await get('items',x.key);if(!latest)continue;if(latest.scope==='local'){await removeItem(x.key);}else{await put('items',{...latest,deleted_at:new Date().toISOString(),text_content:null,state:'delete'});await del('blobs',x.key);}}await reload();sync();}
 function askDelete(list){if(!list.length)return;$('confirmTitle').textContent=list.length===1?'Удалить объект?':`Удалить ${list.length} объектов?`;$('confirmText').textContent=sb?'История будет очищена на всех подключённых устройствах.':'Объекты будут удалены с этого устройства.';confirmAction=async()=>{await deleteItems(list);toast('Удалено');};$('confirmDialog').showModal();}
@@ -27,12 +27,99 @@ function action(e){const btn=e.target.closest('[data-action]');if(!btn)return;co
 function openClean(){const options=[[1,'Старше суток'],[7,'Старше недели'],[30,'Старше месяца (30 дней)'],[90,'Старше 90 дней'],[0,'Вся история']];$('cleanOptions').innerHTML=options.map(([days,name])=>{const n=older(days).length;return `<button data-days="${days}" ${n?'':'disabled'}>${name}<span>${n}</span></button>`;}).join('');$('retention').value=String(read(`linkup.retention.${scope}`,0));$('cleanDialog').showModal();}
 function older(days){return active().filter(x=>!days||Date.parse(x.created_at)<Date.now()-days*86400000);}async function retention(){if(retentionBusy)return;retentionBusy=true;try{const days=read(`linkup.retention.${scope}`,0);if(days){const list=older(days);if(list.length)await deleteItems(list);}}finally{retentionBusy=false;}}
 function setup(){sb?.close();generation++;realtime=false;lastOk=false;syncError='';verifiedDrive=false;drive=makeDrive();sb=null;scope='local';if(config.url&&config.key&&session?.user?.id){scope=`${config.url}:${session.user.id}`;sb=new Supabase(config.url,config.key,session,s=>{session=s;write('linkup.session',s);});}reload().then(()=>{retention();sync();});}
-function openSettings(){$('deviceName').value=config.deviceName;$('sbUrl').value=config.url;$('sbKey').value=config.key;$('email').value=config.email;$('password').value='';$('googleId').value=config.googleId;$('diskProvider').value=config.diskProvider||'yandex';$('diskToken').value='';$('configStatus').textContent=sb?`Supabase: ${session.user.email||config.email} · Drive: ${verifiedDrive&&drive.ready?'подключён':'не подключён'}`:'Локальный режим';$('settingsDialog').showModal();}
-async function saveConfig(e){e.preventDefault();if(syncing||composing){$('configStatus').textContent='Дождитесь окончания синхронизации';return;}const submit=e.submitter;submit.disabled=true;try{const next={...config,deviceName:$('deviceName').value.trim(),url:$('sbUrl').value.trim().replace(/\/$/,''),key:$('sbKey').value.trim(),email:$('email').value.trim(),googleId:$('googleId').value.trim(),diskProvider:$('diskProvider').value};if(!next.deviceName)throw Error('Введите имя устройства');if(Boolean(next.url)!==Boolean(next.key))throw Error('Нужны URL и ключ Supabase');if(next.url&&new URL(next.url).protocol!=='https:')throw Error('Supabase URL должен использовать HTTPS');const password=$('password').value;let nextSession=session;const changed=next.url!==config.url||next.key!==config.key||next.email!==config.email;if(!next.url)nextSession=null;else if(changed||!session||password){if(!next.email||!password)throw Error('Введите почту и пароль Supabase');const temp=new Supabase(next.url,next.key,null,s=>nextSession=s);await temp.login(next.email,password);}const reset=changed||next.diskProvider!==config.diskProvider||next.googleId!==config.googleId||nextSession?.user?.id!==session?.user?.id||Boolean(password);if(changed||nextSession?.user?.id!==session?.user?.id)await native('disableCloud').catch(()=>{});config=next;session=nextSession;write('linkup.config',config);write('linkup.session',session);$('password').value='';if(reset)setup();else{await reload();sync();}$('settingsDialog').close();toast('Настройки сохранены');}catch(err){$('configStatus').textContent=err.message;}finally{submit.disabled=false;}}
-async function connectDrive(){if(!sb){$('configStatus').textContent='Сначала сохраните подключение Supabase';return;}if($('googleId').value.trim()!==config.googleId||$('diskProvider').value!==(config.diskProvider||'yandex')){$('configStatus').textContent='Сначала сохраните OAuth Client ID';return;}const b=$('driveConnect');b.disabled=true;try{verifiedDrive=false;await drive.connect($('diskToken').value);$('diskToken').value='';await verifyDrive();$('configStatus').textContent='Облачный диск подключён';setStatus();sync();}catch(e){drive.token=null;$('configStatus').textContent=e.message;}finally{b.disabled=false;}}
+let cloudBusy=false;
+function setCloudBusy(busy) {
+    cloudBusy=busy;
+    for (const id of ['saveCloud','driveConnect','logout']) $(id).disabled=busy;
+}
+function updateCloudStatus(id, text) {
+    $(id).textContent=text;
+    if ($('settingsDialog').open) $(id).scrollIntoView({block:'nearest'});
+}
+function openSettings() {
+    $('deviceName').value=config.deviceName;
+    $('sbUrl').value=config.url;
+    $('sbKey').value=config.key;
+    $('email').value=config.email;
+    $('password').value='';
+    $('googleId').value=config.googleId;
+    $('diskProvider').value=config.diskProvider||'yandex';
+    $('diskToken').value='';
+    if (!cloudBusy) {
+        $('supabaseStatus').textContent=sb?'Supabase подключён':'Supabase не подключён';
+        $('diskStatus').textContent=verifiedDrive&&drive.ready?'Облачный диск подключён':'Облачный диск не подключён';
+    }
+    $('settingsDialog').showModal();
+}
+async function saveConfig(event) {
+    event.preventDefault();
+    if (cloudBusy) return;
+    const status=text=>updateCloudStatus('supabaseStatus',text);
+    if (syncing||composing) {
+        status('Дождитесь окончания синхронизации');
+        return;
+    }
+    setCloudBusy(true);
+    try {
+        const next={...config,deviceName:$('deviceName').value.trim(),url:projectUrl($('sbUrl').value),
+            key:$('sbKey').value.trim(),email:$('email').value.trim(),
+            googleId:$('googleId').value.trim(),diskProvider:$('diskProvider').value};
+        if (!next.deviceName) throw new Error('Введите имя устройства');
+        if (Boolean(next.url)!==Boolean(next.key)) throw new Error('Supabase · Нужны URL и ключ проекта');
+        const password=$('password').value;
+        const changed=next.url!==config.url||next.key!==config.key||next.email!==config.email;
+        let nextSession=next.url?session:null;
+        if (next.url&&(changed||!session||password)) {
+            status('Supabase · Подключаемся…');
+            nextSession=await signIn(next,password,status);
+        }
+        const accountChanged=changed||nextSession?.user?.id!==session?.user?.id;
+        const reset=accountChanged||next.diskProvider!==config.diskProvider||next.googleId!==config.googleId||Boolean(password);
+        if (accountChanged) await native('disableCloud').catch(()=>{});
+        config=next;
+        session=nextSession;
+        write('linkup.config',config);
+        write('linkup.session',session);
+        $('password').value='';
+        if (reset) {
+            setup();
+            $('diskStatus').textContent='Облачный диск не подключён';
+        } else {
+            reload().then(()=>sync()).catch(error=>toast(error.message,true));
+        }
+        status(session?'Supabase подключён':'Настройки сохранены · локальный режим');
+    } catch (error) {
+        status(error.message);
+    } finally {
+        setCloudBusy(false);
+    }
+}
+async function connectDrive() {
+    if (cloudBusy) return;
+    const status=text=>updateCloudStatus('diskStatus',text);
+    if (!sb) return status('Сначала подключите Supabase');
+    if ($('googleId').value.trim()!==config.googleId||$('diskProvider').value!==config.diskProvider) {
+        return status('Сначала сохраните провайдера и его OAuth Client ID');
+    }
+    setCloudBusy(true);
+    try {
+        const candidate=makeDrive();
+        await verifyDisk(sb,candidate,config.diskProvider,$('diskToken').value,status);
+        drive=candidate;
+        verifiedDrive=true;
+        $('diskToken').value='';
+        status(config.diskProvider==='yandex'?'Яндекс Диск подключён':'Google Drive подключён');
+        setStatus();
+        sync();
+    } catch (error) {
+        status(error.message);
+    } finally {
+        setCloudBusy(false);
+    }
+}
 $('composer').addEventListener('submit',e=>{e.preventDefault();send();});$('attach').onclick=()=>$('files').click();$('files').onchange=e=>{stage([...e.target.files]);e.target.value='';};$('staged').onclick=e=>{const b=e.target.closest('[data-index]');if(b){staged.splice(Number(b.dataset.index),1);renderStage();}};$('message').oninput=resize;$('message').onkeydown=e=>{if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();send();}};$('paste').onclick=async()=>{try{if(window.LinkUpNative||window.qt){const txt=await native('paste');if(txt){$('message').value+=txt;resize();return;}}}catch{}try{if(navigator.clipboard.read){const entries=await navigator.clipboard.read();let added=false;for(const entry of entries){for(const type of entry.types){if(type.startsWith('image/')){const b=await entry.getType(type);stage([new File([b],`clipboard-${Date.now()}.${type.split('/')[1]}`,{type})]);added=true;break;}if(type==='text/plain'){const b=await entry.getType(type);$('message').value+=await b.text();added=true;}}}if(!added)toast('Буфер пуст');}else $('message').value+=await navigator.clipboard.readText();resize();}catch{toast('Вставьте через Ctrl+V или системное меню',true);}};
 document.addEventListener('paste',e=>{if(document.querySelector('dialog[open]'))return;const files=[...e.clipboardData.files];if(files.length){e.preventDefault();stage(files);}else if(!['INPUT','TEXTAREA'].includes(e.target.tagName)){const text=e.clipboardData.getData('text/plain');if(text){e.preventDefault();$('message').value+=text;resize();$('message').focus();}}});let depth=0;window.addEventListener('dragenter',e=>{if(!e.dataTransfer.types.includes('Files'))return;e.preventDefault();depth++;$('dropzone').hidden=false;});window.addEventListener('dragover',e=>{if(e.dataTransfer.types.includes('Files'))e.preventDefault();});window.addEventListener('dragleave',()=>{if(--depth<=0){depth=0;$('dropzone').hidden=true;}});window.addEventListener('drop',e=>{if(e.dataTransfer.files.length){e.preventDefault();stage([...e.dataTransfer.files]);}depth=0;$('dropzone').hidden=true;});
-document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>selectFilter(b.dataset.filter));$('search').oninput=render;document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(e.target.tagName)&&!document.querySelector('dialog[open]')){e.preventDefault();$('search').focus();}});$('history').onclick=action;$('history').onkeydown=e=>{if(e.target.classList.contains('item-body')&&['Enter',' '].includes(e.key)){e.preventDefault();action(e);}};$('viewCopy').onclick=()=>copyText(viewed?.text_content||'');$('clean').onclick=openClean;$('cleanOptions').onclick=e=>{const b=e.target.closest('[data-days]');if(b){const list=older(Number(b.dataset.days));$('cleanDialog').close();askDelete(list);}};$('retention').onchange=e=>{write(`linkup.retention.${scope}`,Number(e.target.value));toast('Автоочистка настроена');};$('confirmYes').onclick=async()=>{$('confirmDialog').close();try{await confirmAction?.();}catch(e){toast(e.message,true);}confirmAction=null;};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('settings').onclick=$('mobileSettings').onclick=openSettings;$('configForm').onsubmit=saveConfig;$('driveConnect').onclick=connectDrive;$('logout').onclick=()=>{if(syncing||composing){$('configStatus').textContent='Дождитесь окончания синхронизации';return;}native('disableCloud').catch(()=>{});session=null;write('linkup.session',null);setup();$('settingsDialog').close();toast('Локальный режим');};$('sync').onclick=()=>sb?sync(true):openSettings();$('status').onclick=()=>{if(syncError)toast(syncError,true);else openSettings();};window.addEventListener('online',()=>{sync();setStatus()});window.addEventListener('offline',setStatus);document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();retention();importShare();}});setInterval(()=>{if(!document.hidden)sync()},15000);setInterval(()=>{if(!document.hidden)retention()},60000);
+document.querySelectorAll('[data-filter]').forEach(b=>b.onclick=()=>selectFilter(b.dataset.filter));$('search').oninput=render;document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','TEXTAREA'].includes(e.target.tagName)&&!document.querySelector('dialog[open]')){e.preventDefault();$('search').focus();}});$('history').onclick=action;$('history').onkeydown=e=>{if(e.target.classList.contains('item-body')&&['Enter',' '].includes(e.key)){e.preventDefault();action(e);}};$('viewCopy').onclick=()=>copyText(viewed?.text_content||'');$('clean').onclick=openClean;$('cleanOptions').onclick=e=>{const b=e.target.closest('[data-days]');if(b){const list=older(Number(b.dataset.days));$('cleanDialog').close();askDelete(list);}};$('retention').onchange=e=>{write(`linkup.retention.${scope}`,Number(e.target.value));toast('Автоочистка настроена');};$('confirmYes').onclick=async()=>{$('confirmDialog').close();try{await confirmAction?.();}catch(e){toast(e.message,true);}confirmAction=null;};document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());$('settings').onclick=$('mobileSettings').onclick=openSettings;$('configForm').onsubmit=saveConfig;$('driveConnect').onclick=connectDrive;$('checkUpdate').onclick=()=>native('checkUpdate').catch(e=>toast(e.message,true));$('logout').onclick=()=>{if(syncing||composing){updateCloudStatus('supabaseStatus','Дождитесь окончания синхронизации');return;}native('disableCloud').catch(()=>{});session=null;write('linkup.session',null);setup();$('settingsDialog').close();toast('Локальный режим');};$('sync').onclick=()=>sb?sync(true):openSettings();$('status').onclick=()=>{if(syncError)toast(syncError,true);else openSettings();};window.addEventListener('online',()=>{sync();setStatus()});window.addEventListener('offline',setStatus);document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();retention();importShare();}});setInterval(()=>{if(!document.hidden)sync()},15000);setInterval(()=>{if(!document.hidden)retention()},60000);
 let importingShare=false;async function importShare(){if(importingShare)return;importingShare=true;try{if(window.LinkUpNative){const incoming=await native('shareList');if(incoming.text){$('message').value+=($('message').value?'\n':'')+incoming.text;resize();}for(const f of incoming.files){const parts=[];let offset=0;for(;;){const encoded=await native('shareRead',{index:f.index,offset});if(!encoded)break;const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));parts.push(bytes);offset+=bytes.length;if(f.size>=0&&offset>=f.size)break;}stage([new File(parts,f.name,{type:f.mime||'application/octet-stream'})]);}await native('shareClear');}const shared=await consumeInbox();for(const x of shared){if(x.files?.length)stage(x.files);if(x.text){$('message').value+=($('message').value?'\n':'')+x.text;resize();}}}catch(e){toast(e.message,true);}finally{importingShare=false;}}
 window.linkupImportShare=importShare;
 setup();initActivity(()=>sb,()=>config);importShare();

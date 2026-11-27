@@ -83,9 +83,10 @@ def locked():
    v=cmd('gdbus','call','--session','--dest',service,'--object-path',path,'--method',service+'.GetActive');return 'true' in v
   except (OSError,subprocess.SubprocessError):pass
  return None
-def collector():
+def collector(next_program=lambda: None):
  last=None;start=None;previous=None;last_sync=0;prior_lock=None;signature=None;old_cfg={}
  while True:
+  if program := next_program():return program
   now=int(time.time()*1000);c=cfg();enabled=c.get('enabled');sig=(enabled,c.get('owner'),c.get('device_id'),c.get('device_name'))
   if sig!=signature:last=None;previous=None;prior_lock=None;start=now;signature=sig
   lock=locked() if enabled else None
@@ -102,7 +103,15 @@ def collector():
    last_sync=time.monotonic();threading.Thread(target=sync,daemon=True).start()
   time.sleep(5)
 if __name__=='__main__':
- lock=open(ROOT/'agent.lock','a')
- try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
- except BlockingIOError:sys.exit(0)
- collector()
+ from updater import BASE, SOURCE
+ current = BASE / 'current'
+ managed = current.resolve() == SOURCE
+ def next_program():
+  target = current.resolve() / 'linux/agent.py'
+  if managed and target.is_file() and target != SOURCE / 'linux/agent.py':
+   return target
+ with (ROOT / 'agent.lock').open('a') as lock:
+  try:fcntl.flock(lock,fcntl.LOCK_EX|fcntl.LOCK_NB)
+  except BlockingIOError:sys.exit(0)
+  program = collector(next_program)
+ os.execv(sys.executable, [sys.executable, str(program)])

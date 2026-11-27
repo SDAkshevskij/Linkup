@@ -1,8 +1,15 @@
 # Changelog
 
-## Planned next release (not implemented)
-- Owner prioritized stable APK signing, GitHub Releases and in-app updates on Android/Linux with upgrade/data preservation tests. Android cloud connection feedback is also a P0 issue. See TASKS.md.
-- Planned mobile UI fixes: system bars/shade and keyboard must not cover controls; portrait/landscape and rotation must preserve open dialogs and unsaved state; replace intrusive default scrollbar with a minimal dark-themed style. Add regression tests. Not implemented yet.
+## v0.2.1 — pending owner-signed publication
+
+- Added main-only GitHub Releases workflow using an owner-controlled PKCS12. Both clients check release versions and download checksums. Android verifies the APK identity and signing certificate and invokes the system installer. Linux updates its per-user installation and restores the previous version if the new UI fails to load.
+- Kept the Android app ID and WebView origin and the Linux user data directory and Qt WebEngine origin across upgrades. Added fixture-based upgrade and data retention tests, including Android rejection of an incompatible signing key and Linux startup rollback.
+- Added separate Supabase and cloud-disk connection progress, timeouts, validation feedback and success states. Documented the debug APK transition and release-key setup. [Release guide](linkup-v0.2.0/RELEASES.md)
+- Verified Android 0.2.0 → 0.2.1 on API 35 using a disposable signing key, including data retention and rejection of an incompatible signature. Verified Linux package update, data retention and startup rollback, 10 shared JS tests, 8 Linux tests and 3 Android smoke tests. Owner signing and production publication remain pending. [CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
+
+## Planned mobile UI work
+
+- Improve Android safe areas, keyboard layout, orientation and lifecycle restoration, and dark-theme scrollbars. Add mobile regression coverage.
 
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.

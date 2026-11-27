@@ -12,4 +12,6 @@ LinkUp is one connected personal application across Android and Linux Mint, with
 ## Development approach
 Version 0.1.0 was a web prototype. Version 0.2.0 uses installed native shells/agents with a bundled local HTML/CSS/JS UI. This is not a hosted website. Flutter was proposed but not adopted due to toolchain availability. Do not migrate without evaluating preservation of functionality and discussing the decision.
 
+Stable updates use GitHub Releases with a monotonic version code. Android uses the owner-controlled signing key and in-place installation. Linux Mint switches per-user program versions and retains its existing data paths. Release CI uses only synthetic test data and temporary test keys until the owner enables protected release signing.
+
 GitHub is the common source of truth for ChatGPT and Codex. The repository is intentionally public at the owner's direction; publish code and sanitized project decisions only. Do not copy private chats, personal records or credentials.

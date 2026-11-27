@@ -5,34 +5,13 @@ import android.content.Intent;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.core.app.ApplicationProvider;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
-import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import static org.junit.Assert.*;
+import static io.linkup.app.WebViewProbe.js;
+import static io.linkup.app.WebViewProbe.waitTrue;
 
 @RunWith(AndroidJUnit4.class)
 public class SmokeTest {
-    private String js(ActivityScenario<MainActivity> scenario, String script) throws Exception {
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<String> result = new AtomicReference<>();
-        scenario.onActivity(a -> a.web.evaluateJavascript(script, value -> {
-            result.set(value); latch.countDown();
-        }));
-        assertTrue("WebView evaluation timed out", latch.await(10, TimeUnit.SECONDS));
-        return result.get();
-    }
-    private void waitTrue(ActivityScenario<MainActivity> scenario, String script) throws Exception {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
-        String last = null;
-        do {
-            last = js(scenario, script);
-            if ("true".equals(last)) return;
-            Thread.sleep(250);
-        } while (System.nanoTime() < deadline);
-        fail("Condition not satisfied: " + script + "; last=" + last);
-    }
     @Test public void opensLocalUiAndActivityScreen() throws Exception {
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
             waitTrue(scenario, "document.readyState === 'complete' && !!document.querySelector('#composer') && typeof window.linkupImportShare === 'function'");
@@ -40,6 +19,17 @@ public class SmokeTest {
             js(scenario, "document.querySelector('[data-page=activity]').click(); true");
             waitTrue(scenario, "!document.querySelector('#activityView').hidden && !!document.querySelector('#actTimeline')");
             waitTrue(scenario, "document.querySelector('#activityStatus').textContent.length > 0");
+        }
+    }
+    @Test public void showsSettingsErrorsWithoutLeavingAndroidDialog() throws Exception {
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            waitTrue(scenario, "typeof window.linkupImportShare==='function'");
+            js(scenario, "document.querySelector('#mobileSettings').click();"
+                    + "document.querySelector('#sbUrl').value='invalid-url';document.querySelector('#saveCloud').click();true");
+            waitTrue(scenario, "document.querySelector('#settingsDialog').open && "
+                    + "document.querySelector('#supabaseStatus').textContent.includes('HTTPS')");
+            js(scenario, "document.querySelector('#driveConnect').click();true");
+            waitTrue(scenario, "document.querySelector('#diskStatus').textContent.includes('Supabase')");
         }
     }
     @Test public void importsSharedText() throws Exception {
