@@ -1,6 +1,6 @@
 # Changelog
 
-## v0.2.1 — pending owner-signed publication
+## v0.2.1 — published
 
 - Added main-only GitHub Releases workflow using an owner-controlled PKCS12. Both clients check release versions and download checksums. Android verifies the APK identity and signing certificate and invokes the system installer. Linux updates its per-user installation and restores the previous version if the new UI fails to load.
 - Kept the Android app ID and WebView origin and the Linux user data directory and Qt WebEngine origin across upgrades. Added fixture-based upgrade and data retention tests, including Android rejection of an incompatible signing key and Linux startup rollback.
@@ -22,3 +22,10 @@
 
 ## v0.1.0 — prototype
 - Adaptive PWA proof of concept for Transfer, IndexedDB, Supabase and Google Drive. Superseded as the primary platform by v0.2.0.
+
+## Next release — planned / not yet implemented
+
+- P0: repair and verify real Activity collection on Android and Linux. Current automated tests do not prove real UsageEvents or X11 active-window sampling.
+- Add non-secret collector health diagnostics and true end-to-end activity tests.
+- Redesign Activity permissions/settings away from checkbox + button-per-permission forms; integrate permission flows into designed toggles/cards and move advanced cloud controls behind progressive disclosure.
+- Enforce the LinkUp product-design rule across the app: no default-looking scrollbars/raw controls/admin-form layouts in shipped user-facing surfaces.

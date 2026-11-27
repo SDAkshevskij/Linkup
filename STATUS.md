@@ -1,4 +1,4 @@
-# Development status — 2026-11-27
+# Development status — 2026-11-28
 
 Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merged into main via PR #1. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
 
@@ -35,3 +35,15 @@ Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/S
 ## Next action for Codex
 
 Review [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3) with the emulator screenshots and signed-upgrade evidence. Verify system bars, cutouts and keyboard behavior on a physical Android phone. Production signing still depends on the owner configuring `linkup-release`, and the original cloud report needs a physical-device test with a dedicated account.
+
+## Owner physical-device finding — Activity reliability
+
+The owner granted Android Usage Access but reports that no Activity statistics are visible on either the physical Android phone or Linux Mint laptop. Treat this as a P0 functional defect, not as a UI-only issue.
+
+Code review on 2026-11-28 found:
+- Android Collector.configure() resets the usage cursor and clears app/screen state when collection is enabled. Collector.collect() then depends on future UsageEvents boundaries; immediately after enabling there can be no row until a later foreground transition. Activity-page smoke tests only verify that the page/status opens; upgrade tests seed SQLite directly. There is no current end-to-end test proving real UsageEvents -> SQLite -> timeline.
+- Android background collection is a periodic JobScheduler job; the UI path does call collect() when Activity is queried, so local collection should not depend on Supabase. The physical-device failure therefore needs collector-level diagnostics rather than cloud assumptions.
+- Linux app.py launches agent.py, and autostart is also installed. However agent.sample() converts xprintidle/xprop/X11 failures into None without recording the cause. The UI can therefore show collection enabled while zero samples are being produced. Current Linux tests call emit() directly and do not prove active-window sampling.
+- Local Activity rows are read independently of Supabase. A Supabase timeout may prevent cloud synchronization but should not by itself explain an empty local timeline.
+
+Next executor must first make collection observable and prove real end-to-end events on Android and Linux, then redesign the Activity settings/permission UX according to AGENTS.md. Do not hide a broken collector behind prettier UI.
