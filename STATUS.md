@@ -47,3 +47,8 @@ Code review on 2026-11-28 found:
 - Local Activity rows are read independently of Supabase. A Supabase timeout may prevent cloud synchronization but should not by itself explain an empty local timeline.
 
 Next executor must first make collection observable and prove real end-to-end events on Android and Linux, then redesign the Activity settings/permission UX according to AGENTS.md. Do not hide a broken collector behind prettier UI.
+
+
+## Product-quality directive — 2026-11-28
+
+The owner explicitly raised the quality bar for future implementation. Design is now a first-class acceptance criterion rather than post-functional polish, and executors are responsible for inventing a broad adversarial test matrix instead of implementing only named happy paths. PRODUCT_QUALITY.md is now the binding design/testing contract and AGENTS.md requires it to be read before work.

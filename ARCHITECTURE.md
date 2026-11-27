@@ -38,3 +38,14 @@ bash ../tools/test-android-mobile.sh
 bash ../tools/test-android-upgrade.sh
 ```
 See nested README.md and ANDROID-CI.md for setup details. Verify current source and tool versions before changing the workflow. No real cloud tokens are required for mock/smoke tests.
+
+
+## Verification philosophy
+
+PRODUCT_QUALITY.md defines the project-wide test and design acceptance bar. Test lists in this file are minimum commands, not a complete plan. Each change must derive additional cases from its own state transitions, platform APIs, persistence, concurrency, retries and failure modes.
+
+For native Activity collection specifically, proof requires the real source path:
+- Android: actual UsageEvents -> Collector -> SQLite -> native bridge -> Activity UI.
+- Linux X11: actual active window/xprintidle/xprop -> agent -> SQLite -> Qt bridge -> Activity UI.
+
+Synthetic rows, direct emit() calls and pre-seeded databases are useful lower-level tests but are not evidence that collection itself works.

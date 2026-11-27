@@ -41,10 +41,13 @@
 
 ## P0 — redesign Activity controls and enforce LinkUp visual quality
 
+Acceptance for this section is governed by PRODUCT_QUALITY.md. The executor must propose internally at least two materially different interaction/composition approaches before choosing one, and must attach screenshots plus an explicit adversarial test matrix to the PR. “Works and looks clean” is not enough if the result is still an obvious form/dashboard solution.
+
 - [ ] Replace the current checkbox + separate “Системный доступ” / “Разрешение геолокации” button layout. Use designed source cards/toggles: enabling “Приложения” launches Usage Access flow when needed; enabling “Местоположение” launches runtime/system permission flow when needed; state updates automatically on resume.
 - [ ] Move Supabase/background-session details into an “Облако / расширенные настройки” sub-surface. Only reveal the background-session password when cloud Activity sync is enabled and main Supabase is connected. Do not make the main Activity screen look like a settings form.
 - [ ] Redesign Activity as a distinctive visual product surface rather than a basic dashboard: timeline is the hero, devices/apps and overlap are legible at a glance, controls are compact and intentional, and empty/error/permission states are visually designed. Preserve the bold dark LinkUp identity across Android and Linux.
-- [ ] Audit the whole app for generic UI regressions: default/light/basic scrollbars, raw browser/Qt controls, button-per-field forms, excessive permanent buttons, low-information boxes, and desktop forms merely squeezed onto mobile. Replace with intentional custom components and progressive disclosure while preserving accessibility and responsive behavior.
+- [ ] Audit the whole app for generic UI regressions: default/light/basic scrollbars, raw browser/Qt controls, button-per-field forms, excessive permanent buttons, low-information boxes, repetitive generic card grids, and desktop forms merely squeezed onto mobile. Replace with intentional custom components and progressive disclosure while preserving accessibility and responsive behavior.
+- [ ] For the Activity repair/redesign PR, derive and document a test matrix beyond the cases listed in this file. Include bootstrap, no events yet, permission grant/deny/revoke, agent missing/crash/restart, X11 tool failure, Wayland, offline Supabase, timeout, app restart, background/resume, rotation, compact viewport, long app names, overlapping devices, midnight/day boundary, duplicate events, clock changes where practical, and upgrade/data retention. Add automated coverage wherever technically feasible and label remaining physical-device checks explicitly.
 
 ## P1 — follow-up
 - [ ] Real Linux Mint X11 runtime/package verification; Wayland deferred.
