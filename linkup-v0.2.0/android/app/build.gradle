@@ -1,13 +1,17 @@
 plugins { id 'com.android.application' }
+def releaseVersion = new Properties()
+rootProject.file('../version.properties').withInputStream { releaseVersion.load(it) }
+
 android {
  namespace 'io.linkup.app'
  compileSdk 35
- defaultConfig { applicationId 'io.linkup.app'; minSdk 29; targetSdk 35; versionCode 2; versionName '0.2.0'; testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
+ defaultConfig { applicationId 'io.linkup.app'; minSdk 29; targetSdk 35; versionCode providers.gradleProperty('linkupTestVersionCode').orElse(releaseVersion.getProperty('versionCode')).get().toInteger(); versionName releaseVersion.getProperty('versionName'); testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
  sourceSets { main { assets.srcDirs = ['../../ui'] } }
 }
 
 dependencies {
+ implementation "androidx.core:core:1.15.0"
  androidTestImplementation "androidx.test:runner:1.6.2"
  androidTestImplementation "androidx.test:core:1.6.1"
  androidTestImplementation "androidx.test.ext:junit:1.2.1"

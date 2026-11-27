@@ -2,9 +2,9 @@ export class CloudError extends Error{constructor(message,status=0){super(messag
 async function checked(response){if(!response.ok){let msg;try{const d=await response.json();msg=d.message||d.error_description||d.error?.message||d.error||d.msg;}catch{}throw new CloudError(typeof msg==='string'?msg:`HTTP ${response.status}`,response.status);}return response;}
 export class Supabase{
  constructor(url,key,session,onSession){this.url=url.replace(/\/$/,'');this.key=key;this.session=session;this.onSession=onSession;this.ws=null;this.timer=null;this.seq=0;}
- async auth(path,body){const r=await checked(await fetch(`${this.url}/auth/v1/${path}`,{method:'POST',headers:{apikey:this.key,'Content-Type':'application/json'},body:JSON.stringify(body)}));return r.json();}
+ async auth(path,body,signal){const r=await checked(await fetch(`${this.url}/auth/v1/${path}`,{signal,method:'POST',headers:{apikey:this.key,'Content-Type':'application/json'},body:JSON.stringify(body)}));return r.json();}
  setSession(s){this.session=s?{...s,expires_at:s.expires_at||Math.floor(Date.now()/1000)+(s.expires_in||3600)}:null;this.onSession(this.session);}
- async login(email,password){const s=await this.auth('token?grant_type=password',{email,password});this.setSession(s);return s.user;}
+ async login(email,password,signal){const s=await this.auth('token?grant_type=password',{email,password},signal);if(!s.user?.id||!s.access_token||!s.refresh_token)throw new CloudError('Некорректный ответ Supabase',502);this.setSession(s);return s.user;}
  async token(){if(!this.session)throw new CloudError('Войдите в Supabase',401);if(this.session.expires_at>Date.now()/1000+60)return this.session.access_token;if(!this.refreshing)this.refreshing=this.auth('token?grant_type=refresh_token',{refresh_token:this.session.refresh_token}).then(s=>{this.setSession(s);if(this.ws?.readyState===1)this.send('realtime:linkup','access_token',{access_token:s.access_token});return s.access_token;}).finally(()=>this.refreshing=null);return this.refreshing;}
  async request(path,opts={}){const token=await this.token();return checked(await fetch(`${this.url}/rest/v1/${path}`,{...opts,headers:{apikey:this.key,Authorization:`Bearer ${token}`,'Content-Type':'application/json',...opts.headers}}));}
  async list(){let rows=[],page=0;while(true){const r=await this.request(`linkup_items?select=*&order=id.asc&limit=500&offset=${page*500}`);const batch=await r.json();rows.push(...batch);if(batch.length<500)return rows;page++;}}
@@ -32,7 +32,7 @@ export class YandexDrive {
  get ready(){return !!this.token;}
  async connect(token){if(!this.clientId)throw Error('Укажите Client ID OAuth-приложения Яндекс');if(!token)throw Error('Введите OAuth access token');this.token=token.trim();}
  async api(path,opts={}){if(!this.ready)throw new CloudError('Подключите Яндекс Диск',401);try{return await checked(await fetch('https://cloud-api.yandex.net/v1/disk'+path,{...opts,headers:{Authorization:`OAuth ${this.token}`,...opts.headers}}));}catch(e){if(e.status===401)this.token=null;throw e;}}
- async identity(){const data=await (await this.api('')).json();if(!data.user?.uid)throw Error('Не удалось определить аккаунт Яндекс Диска');return 'yandex:'+this.clientId+':'+data.user.uid;}
+ async identity(signal){const data=await (await this.api('',{signal})).json();if(!data.user?.uid)throw Error('Не удалось определить аккаунт Яндекс Диска');return 'yandex:'+this.clientId+':'+data.user.uid;}
  path(id){if(!/^[a-f0-9-]{36}$/i.test(id))throw Error('Некорректный ID файла');return 'app:/'+id;}
  async find(id){try{await this.api('/resources?'+new URLSearchParams({path:this.path(id)}));return 'yd:'+id;}catch(e){if(e.status===404)return null;throw e;}}
  async upload(file,item,progress){const found=await this.find(item.id);if(found)return found;const q=new URLSearchParams({path:this.path(item.id),overwrite:'false'});const d=await (await this.api('/resources/upload?'+q)).json();if(!d.href||new URL(d.href).protocol!=='https:')throw Error('Не получен URL загрузки');await checked(await fetch(d.href,{method:'PUT',body:file}));progress(100);return 'yd:'+item.id;}

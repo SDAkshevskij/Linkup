@@ -14,7 +14,7 @@ import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class SmokeTest {
-    private String js(ActivityScenario<MainActivity> scenario, String script) throws Exception {
+    String js(ActivityScenario<MainActivity> scenario, String script) throws Exception {
         CountDownLatch latch = new CountDownLatch(1);
         AtomicReference<String> result = new AtomicReference<>();
         scenario.onActivity(a -> a.web.evaluateJavascript(script, value -> {
@@ -23,7 +23,7 @@ public class SmokeTest {
         assertTrue("WebView evaluation timed out", latch.await(10, TimeUnit.SECONDS));
         return result.get();
     }
-    private void waitTrue(ActivityScenario<MainActivity> scenario, String script) throws Exception {
+    void waitTrue(ActivityScenario<MainActivity> scenario, String script) throws Exception {
         long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(30);
         String last = null;
         do {
