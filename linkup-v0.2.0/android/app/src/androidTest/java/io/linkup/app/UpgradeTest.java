@@ -54,19 +54,45 @@ public class UpgradeTest {
                 }
             });
             if (failure.get() != null) throw failure.get();
-            if (seed) {
-                ui.js(scenario, "localStorage.setItem('linkup.config',JSON.stringify({...JSON.parse(localStorage.getItem('linkup.config')),deviceName:'"
-                        + FIXTURE + "'}));localStorage.setItem('linkup.session',JSON.stringify({user:{id:'" + FIXTURE + "'}}));"
-                        + "import('/ui/db.js').then(db=>db.saveItem({key:'" + FIXTURE
-                        + "',scope:'local',id:'" + FIXTURE + "',kind:'text',text_content:'" + FIXTURE
-                        + "'},new Blob(['" + FIXTURE + "']))).then(()=>{" + BUFFER + "=true});");
-            } else {
+            if (!seed) {
                 ui.waitTrue(scenario, STATE + "==='" + FIXTURE + "' && " + SESSION + "==='" + FIXTURE + "'");
-                ui.js(scenario, "import('/ui/db.js').then(async db=>{const item=await db.get('items','" + FIXTURE
-                        + "');const file=await db.get('blobs','" + FIXTURE + "');" + BUFFER
-                        + "=item?.text_content==='" + FIXTURE + "' && await file?.blob.text()==='" + FIXTURE + "'});");
             }
-            ui.waitTrue(scenario, BUFFER + "===true");
+            ui.js(scenario, "(seed => {" + """
+                const fixture = 'FIXTURE';
+                window.upgradeProbe = 'pending';
+                if (seed) {
+                    localStorage.setItem('linkup.config', JSON.stringify({
+                        ...JSON.parse(localStorage.getItem('linkup.config')), deviceName:fixture
+                    }));
+                    localStorage.setItem('linkup.session', JSON.stringify({user:{id:fixture}}));
+                }
+                const request = indexedDB.open('linkup-v1', 1);
+                request.onerror = () => { window.upgradeProbe = String(request.error); };
+                request.onsuccess = () => {
+                    const db = request.result;
+                    try {
+                        const transaction = db.transaction(['items','blobs'], seed ? 'readwrite' : 'readonly');
+                        transaction.onerror = () => { window.upgradeProbe = String(transaction.error); };
+                        const items = transaction.objectStore('items'), blobs = transaction.objectStore('blobs');
+                        if (seed) {
+                            items.put({key:fixture,scope:'local',id:fixture,kind:'text',text_content:fixture});
+                            blobs.put({key:fixture,blob:new Blob([fixture])});
+                            transaction.oncomplete = () => { db.close(); window.upgradeProbe = true; };
+                        } else {
+                            const item = items.get(fixture), file = blobs.get(fixture);
+                            transaction.oncomplete = async () => {
+                                db.close();
+                                window.upgradeProbe = item.result?.text_content === fixture
+                                    && await file.result?.blob.text() === fixture;
+                            };
+                        }
+                    } catch (error) {
+                        window.upgradeProbe = String(error);
+                    }
+                };
+                """.replace("FIXTURE", FIXTURE) + "})(" + seed + ")");
+            ui.waitTrue(scenario, BUFFER + "!=='pending'");
+            assertEquals("IndexedDB " + phase, "true", ui.js(scenario, BUFFER));
         }
     }
 }
