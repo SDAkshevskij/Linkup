@@ -19,8 +19,6 @@ mkdir -p "$diagnostics"/{before,gesture,three-button}
 active_nav=$(adb shell cmd overlay list | tr -d '\r' | sed -n "s/^\[x\] \($nav\..*\)$/\1/p")
 old_ime=$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')
 cleanup() {
-  adb shell wm size reset >/dev/null || true
-  adb shell wm density reset >/dev/null || true
   adb shell cmd overlay disable "$cutout" >/dev/null || true
   if [[ -n $active_nav ]]; then
     adb shell cmd overlay enable-exclusive --category "$active_nav" >/dev/null || true
@@ -45,8 +43,9 @@ collect_screens() {
     adb pull "$screens-$name.png" "$diagnostics/$set/$name.png"
   done
 }
-adb shell wm size 480x854
-adb shell wm density 240
+# Use the runner's compact physical display. wm overrides lose the emulated cutout.
+adb shell wm size
+adb shell wm density
 adb shell settings put secure show_ime_with_hard_keyboard 1
 set_overlay "$nav.gestural"
 set_overlay "$cutout"

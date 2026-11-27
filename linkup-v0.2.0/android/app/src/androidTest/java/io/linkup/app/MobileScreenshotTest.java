@@ -5,6 +5,7 @@ import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
 import android.os.Build;
 import android.os.ParcelFileDescriptor;
+import android.webkit.WebView;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -12,6 +13,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import java.io.File;
 import java.io.FileOutputStream;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
 import static io.linkup.app.WebViewProbe.js;
 import static io.linkup.app.WebViewProbe.waitTrue;
 import static org.junit.Assert.assertNotNull;
@@ -29,12 +32,19 @@ public class MobileScreenshotTest {
                 js(scenario, "(()=>{const d=document.querySelector('#settingsDialog');"
                         + "if(!d.open)document.querySelector('#mobileSettings').click();d.scrollTop=0;return true})()");
                 waitTrue(scenario, "document.querySelector('#settingsDialog').open");
-                capture(landscape ? "landscape-settings" : "portrait-settings");
+                capture(scenario, landscape ? "landscape-settings" : "portrait-settings");
             }
         }
     }
 
-    static void capture(String name) throws Exception {
+    static void capture(ActivityScenario<MainActivity> scenario, String name) throws Exception {
+        CountDownLatch drawn = new CountDownLatch(1);
+        scenario.onActivity(activity -> activity.web.postVisualStateCallback(0, new WebView.VisualStateCallback() {
+            @Override public void onComplete(long requestId) {
+                activity.web.postOnAnimation(() -> activity.web.postOnAnimation(drawn::countDown));
+            }
+        }));
+        assertTrue("WebView drew the screenshot frame", drawn.await(10, TimeUnit.SECONDS));
         UiAutomation automation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
         Bitmap shot = automation.takeScreenshot();
         assertNotNull("screen capture", shot);

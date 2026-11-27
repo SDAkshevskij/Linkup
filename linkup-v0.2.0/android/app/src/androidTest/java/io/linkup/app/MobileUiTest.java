@@ -39,7 +39,7 @@ public class MobileUiTest {
             scenario.onActivity(activity -> original.set(activity.web));
 
             js(scenario, """
-                document.querySelector('[data-filter=files]').click();
+                document.querySelector('[data-filter=file]').click();
                 const message=document.querySelector('#message');
                 message.value='Synthetic unsent draft';
                 message.dispatchEvent(new Event('input'));
@@ -101,6 +101,8 @@ public class MobileUiTest {
                 waitTrue(scenario, insideViewport("#composer"));
                 js(scenario, "document.querySelector('#mobileSettings').click();true");
                 waitTrue(scenario, SETTINGS + ".open && " + insideViewport("#settingsDialog"));
+                scrollTo(scenario, "#driveConnect");
+                waitTrue(scenario, insideViewport("#driveConnect"));
                 scrollTo(scenario, "#checkUpdate");
                 waitTrue(scenario, insideViewport("#checkUpdate") + " && " + insideViewport("#settingsDialog [data-close]"));
                 waitTrue(scenario, SETTINGS + ".scrollHeight > " + SETTINGS + ".clientHeight && "
@@ -119,7 +121,7 @@ public class MobileUiTest {
                 waitTrue(scenario, insideViewport("#settingsDialog [data-close]"));
                 scrollTo(scenario, "#saveCloud");
                 waitTrue(scenario, insideViewport("#saveCloud"));
-                MobileScreenshotTest.capture(landscape ? "landscape-keyboard" : "portrait-keyboard");
+                MobileScreenshotTest.capture(scenario, landscape ? "landscape-keyboard" : "portrait-keyboard");
 
                 hideKeyboard(scenario);
                 js(scenario, "document.querySelector('#settingsDialog').close();true");
@@ -171,27 +173,38 @@ public class MobileUiTest {
             document.querySelector('#diskToken').value==='synthetic-token' &&
             document.querySelector('#message').value==='Synthetic unsent draft' &&
             document.querySelector('#staged').textContent.includes('orientation.txt') &&
-            document.querySelector('[data-filter=files]').classList.contains('active') &&
+            document.querySelector('[data-filter=file]').classList.contains('active') &&
             document.body.classList.contains('activity-mode')
             """);
     }
 
     private static void awaitInsets(ActivityScenario<MainActivity> scenario, boolean imeVisible) throws Exception {
         boolean requireCutout = Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("requireCutout"));
-        awaitActivity(scenario, activity -> {
-            View root = (View) activity.web.getParent();
-            WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(root);
-            if (insets == null || insets.isVisible(WindowInsetsCompat.Type.ime()) != imeVisible) return false;
-            Insets bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
-                    | WindowInsetsCompat.Type.displayCutout());
-            Insets visible = Insets.max(bars, insets.getInsets(WindowInsetsCompat.Type.ime()));
-            Insets cutout = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.displayCutout());
-            return (!requireCutout || !Insets.NONE.equals(cutout)) && bars.top > 0 && (!imeVisible || visible.bottom > bars.bottom)
-                    && root.getPaddingLeft() == visible.left && root.getPaddingTop() == visible.top
-                    && root.getPaddingRight() == visible.right && root.getPaddingBottom() == visible.bottom
-                    && activity.web.getWidth() == root.getWidth() - visible.left - visible.right
-                    && activity.web.getHeight() == root.getHeight() - visible.top - visible.bottom;
-        }, imeVisible ? "WebView resized for IME" : "stable system bar and display cutout insets");
+        AtomicReference<String> measures = new AtomicReference<>();
+        try {
+            awaitActivity(scenario, activity -> {
+                View root = (View) activity.web.getParent();
+                WindowInsetsCompat insets = ViewCompat.getRootWindowInsets(root);
+                if (insets == null) return false;
+                Insets bars = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.systemBars()
+                        | WindowInsetsCompat.Type.displayCutout());
+                Insets cutout = insets.getInsetsIgnoringVisibility(WindowInsetsCompat.Type.displayCutout());
+                Insets ime = insets.getInsets(WindowInsetsCompat.Type.ime());
+                Insets visible = Insets.max(bars, ime);
+                Insets padding = Insets.of(root.getPaddingLeft(), root.getPaddingTop(),
+                        root.getPaddingRight(), root.getPaddingBottom());
+                measures.set("bars=" + bars + " cutout=" + cutout + " ime=" + ime + " padding=" + padding
+                        + " container=" + root.getWidth() + "x" + root.getHeight()
+                        + " web=" + activity.web.getWidth() + "x" + activity.web.getHeight());
+                return insets.isVisible(WindowInsetsCompat.Type.ime()) == imeVisible
+                        && (!requireCutout || !Insets.NONE.equals(cutout)) && !Insets.NONE.equals(bars)
+                        && (!imeVisible || visible.bottom > bars.bottom) && padding.equals(visible)
+                        && activity.web.getWidth() == root.getWidth() - visible.left - visible.right
+                        && activity.web.getHeight() == root.getHeight() - visible.top - visible.bottom;
+            }, imeVisible ? "WebView resized for IME" : "stable system bar and display cutout insets");
+        } catch (AssertionError error) {
+            throw new AssertionError(error.getMessage() + "; last: " + measures.get(), error);
+        }
     }
 
     private static void awaitActivity(ActivityScenario<MainActivity> scenario, Predicate<MainActivity> condition,
