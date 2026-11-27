@@ -128,7 +128,7 @@ Do not chase a meaningless percentage target. Cover risk.
 
 ## 6. Activity-specific current mission
 
-Current P0 is to repair and prove real Activity collection, then redesign the Activity experience.
+Current P0-A is to repair and prove real Activity collection; do not make the P2 redesign a prerequisite. P0-B contains immediate cloud privacy risks and P0-C covers connection/release verification. TASKS.md defines the full priority contract.
 
 ### Android proof path
 Usage Access -> real UsageEvents -> Collector -> SQLite -> native bridge -> activity.js -> rendered timeline.
@@ -177,7 +177,7 @@ Cover:
 
 Expose safe diagnostics for: agent heartbeat/PID, XDG_SESSION_TYPE, DISPLAY, required tool availability, last sample, last sample error, active WM_CLASS, local event count and last event timestamp.
 
-### Activity UX
+### Activity UX (P2, after P0-A)
 Do not retain the current checkbox + separate permission button form.
 
 Desired interaction model:
@@ -221,3 +221,7 @@ A PR is not ready if:
 - CI is green but the real integration path was not exercised;
 - important edge cases were omitted without explanation;
 - screenshots reveal default/native controls, bad scrollbars, clipping or generic form layouts.
+
+## 9. Security and keyboard execution
+
+Implement the owner-selected cryptographic suite, trust model and cloud-sync gate in TASKS.md, not a different protocol. Produce SECURITY_PROTOCOL.md and interoperability vectors before integration. Distinguish local plaintext history (allowed) from cloud plaintext user content (prohibited). Verify payloads before TLS and at rest in test cloud storage, not merely encrypted packet captures. Use synthetic fixtures only. Do not start automatic cloud clipboard sync until its security dependencies pass. The local HeliBoard IME may proceed in parallel, with no INTERNET permission and strictly offline on-device dictation derived from the accessible Ask Fragments source. If that source is unavailable, report it and proceed with independent tasks; do not invent an equivalent or introduce online speech. Keep all claims tied to evidence and owner approval.
