@@ -38,9 +38,13 @@ public class MobileScreenshotTest {
     }
 
     static void capture(ActivityScenario<MainActivity> scenario, String name) throws Exception {
+        js(scenario, "window.linkupScreenshotFrame=false;"
+                + "requestAnimationFrame(()=>requestAnimationFrame(()=>window.linkupScreenshotFrame=true));true");
+        waitTrue(scenario, "window.linkupScreenshotFrame===true");
         CountDownLatch drawn = new CountDownLatch(1);
         scenario.onActivity(activity -> activity.web.postVisualStateCallback(0, new WebView.VisualStateCallback() {
             @Override public void onComplete(long requestId) {
+                activity.web.invalidate();
                 activity.web.postOnAnimation(() -> activity.web.postOnAnimation(drawn::countDown));
             }
         }));

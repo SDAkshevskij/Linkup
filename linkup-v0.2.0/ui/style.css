@@ -44,6 +44,8 @@
 
 @media (max-width: 350px) {
     .mobile-brand { display: none; }
+    .top-actions { gap: 2px; }
+    .top-actions .status { max-width: 88px; padding-inline: 7px; }
 }
 
 @media (max-height: 420px) and (pointer: coarse) {
