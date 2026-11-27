@@ -2,7 +2,7 @@
 set -euo pipefail
 : "${LINKUP_KEYSTORE_BASE64:?Set LINKUP_KEYSTORE_BASE64 in linkup-release}"
 : "${LINKUP_KEYSTORE_PASSWORD:?Set LINKUP_KEYSTORE_PASSWORD in linkup-release}"
-: "${RUNNER_TEMP:?}" "${GITHUB_REPOSITORY:?}" "${ANDROID_HOME:?}"
+: "${RUNNER_TEMP:?}" "${ANDROID_HOME:?}"
 umask 077
 project=$(cd "$(dirname "$0")/.." && pwd)
 code=$(sed -n 's/^versionCode=//p' "$project/version.properties")
@@ -29,18 +29,6 @@ cert() {
 badging=$("$tools/aapt" dump badging "$apk")
 [[ $badging == "package: name='io.linkup.app' versionCode='$code' versionName='$name'"* ]]
 
-# Compare the signer with the current published release and reject reused version codes.
-previous=$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-  --jq '.[] | select(.draft == false and .prerelease == false) | .assets[] | select(.name | test("^LinkUp-Android-[1-9][0-9]{0,8}\\.apk$")) | .name + " " + .url' \
-  | sort -t- -k3,3nr | sed -n '1p')
-if [[ -n $previous ]]; then
-  read -r asset api <<< "$previous"
-  previous_code=${asset#LinkUp-Android-}
-  [[ $code -gt ${previous_code%.apk} ]]
-  [[ $api =~ ^https://api\.github\.com/repos/SDAkshevskij/Linkup/releases/assets/[0-9]+$ ]]
-  gh api "${api#https://api.github.com/}" -H 'Accept: application/octet-stream' > "$private/previous.apk"
-  [[ $(cert "$private/previous.apk") == "$fingerprint" ]]
-fi
 python3 "$project/tools/package_linux.py" "$output/LinkUp-Linux-$code.zip"
 cd "$output"
 sha256sum "LinkUp-Android-$code.apk" "LinkUp-Linux-$code.zip" > SHA256SUMS

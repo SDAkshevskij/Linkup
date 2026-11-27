@@ -10,13 +10,14 @@
 - [x] Download the tested `app-debug.apk` and verify its debug signature with `apksigner verify --verbose`. [APK artifact](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710/artifacts/15211278532)
 
 ## P0 — stable releases and in-app updates (owner priority)
-- [ ] Persistent Android release signing with an owner-controlled PKCS12 keystore; stable applicationId io.linkup.app and increasing versionCode. Keep the existing debug CI separate; no release signing credentials in pull request jobs.
-- [ ] Release-only workflow on reviewed main / trusted tags, protected environment `linkup-release` with secrets LINKUP_KEYSTORE_BASE64 and LINKUP_KEYSTORE_PASSWORD, alias linkup. Fail closed if secrets are absent; never fall back to debug signing. Verify APK signer and checksum, publish versioned APK and Linux installer to GitHub Releases after checks pass.
-- [ ] Android in-app update check (GitHub Releases, compare numeric versionCode, show changelog), download with progress, verify hash and matching package/signing certificate, launch system installation confirmation. Handle network errors, cancellation, no updates, denied installation and incompatible signature.
-- [ ] Linux in-app update check and safe user-confirmed update, preserve local data and configuration, stop/restart UI and agent as needed, verify downloaded package, rollback on failure. Prefer user-local installation without new root privileges.
+- [x] Implement the Android PKCS12 signing path with application ID `io.linkup.app` and shared numeric versionCode. Keep debug and protected release CI separate.
+- [x] Implement main-only GitHub Releases workflow with environment `linkup-release`, secrets `LINKUP_KEYSTORE_BASE64` and `LINKUP_KEYSTORE_PASSWORD`, and alias `linkup`. Verify signer continuity, version, and checksums before publication.
+- [x] Implement Android in-app update check (GitHub Releases, compare numeric versionCode, show changelog), download with progress, verify hash and matching package/signing certificate, launch system installation confirmation. Handle network errors, cancellation, no updates, denied installation and incompatible signature.
+- [x] Implement Linux in-app update check and safe user-confirmed update, preserve local data and configuration, stop/restart UI and agent as needed, verify downloaded package, rollback on failure. Prefer user-local installation without new root privileges.
 - [ ] Test upgrade from two successive versions signed with the same test key: preserve settings, local SQLite/IndexedDB data and sessions; verify incompatible signatures rejected. Document one-time transition from ephemeral debug APK; do not ask user to uninstall before backup/export or checking what is cloud-synced.
-- [ ] Fix Android cloud connection feedback (Supabase vs Yandex separately, progress, bounded network timeouts, useful visible error messages, validation, success confirmation). User reports desktop connects but Android remains in settings silently; exact root cause not yet established. Add regression tests and check real-device behavior.
-- [ ] Owner creates and backs up signing key privately and configures protected GitHub environment. Never request private key, passwords or tokens in chat or commits.
+- [x] Implement separate Supabase and cloud-disk progress, deadlines, validation, visible feedback and success states. Add JS and Android WebView regression scenarios.
+- [ ] Confirm cloud connection on a physical Android device with a dedicated test account. The reported device-specific cause remains unverified.
+- [ ] Owner reviews the workflow, creates and backs up the signing key privately, configures the protected GitHub environment, and dispatches the first production release after merge. Never share the private key or its password in chat or Git.
 
 ## P1 — follow-up
 - [ ] Real Linux Mint X11 runtime/package verification; Wayland deferred.

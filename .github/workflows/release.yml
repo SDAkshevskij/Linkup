@@ -38,8 +38,11 @@ jobs:
         env:
           LINKUP_KEYSTORE_BASE64: ${{ secrets.LINKUP_KEYSTORE_BASE64 }}
           LINKUP_KEYSTORE_PASSWORD: ${{ secrets.LINKUP_KEYSTORE_PASSWORD }}
-          GH_TOKEN: ${{ github.token }}
         run: bash linkup-v0.2.0/tools/prepare-release.sh
+      - name: Verify version and signer continuity against published releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash linkup-v0.2.0/tools/verify-release-history.sh
       - name: Publish verified assets
         env:
           GH_TOKEN: ${{ github.token }}

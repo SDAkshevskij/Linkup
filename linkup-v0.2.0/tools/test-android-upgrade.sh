@@ -39,7 +39,11 @@ old="$legacy/app/build/outputs/apk/debug/app-debug.apk"
 new="$project/android/app/build/outputs/apk/release/app-release-unsigned.apk"
 tests=app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 sign test "$work/old.apk" "$old"
-sign test "$work/new.apk" "$new"
+LINKUP_KEYSTORE_BASE64="$(base64 -w0 "$work/test.p12")" \
+  LINKUP_KEYSTORE_PASSWORD=disposable-ci-only RUNNER_TEMP="$work" \
+  bash "$project/tools/prepare-release.sh"
+code=$(sed -n 's/^versionCode=//p' "$project/version.properties")
+released="$work/linkup-release/LinkUp-Android-$code.apk"
 sign wrong "$work/wrong.apk" "$new"
 sign test "$work/old-tests.apk" "$legacy/$tests"
 sign test "$work/new-tests.apk" "$project/android/$tests"
@@ -59,6 +63,6 @@ if result=$(adb install -r "$work/wrong.apk" 2>&1); then
 fi
 printf '%s\n' "$result"
 [[ $result == *INSTALL_FAILED_UPDATE_INCOMPATIBLE* ]]
-adb install -r "$work/new.apk"
+adb install -r "$released"
 adb install -r -t "$work/new-tests.apk"
 instrument verify
