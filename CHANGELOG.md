@@ -25,6 +25,8 @@
 
 ## Next release — planned / not yet implemented
 
+- Planning only: revised P0–P3 priorities, mandatory LinkUp Security v1 E2EE data channel (no local-history encryption or migration), offline HeliBoard/Ask Fragments microphone, and cloud clipboard dependency. No implementation or test results claimed for these additions.
+
 - P0: repair and verify real Activity collection on Android and Linux. Current automated tests do not prove real UsageEvents or X11 active-window sampling.
 - Add non-secret collector health diagnostics and true end-to-end activity tests.
 - Redesign Activity permissions/settings away from checkbox + button-per-permission forms; integrate permission flows into designed toggles/cards and move advanced cloud controls behind progressive disclosure.
