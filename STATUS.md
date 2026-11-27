@@ -11,13 +11,16 @@ LinkUp v0.2.0 is experimental. The Android fixes were merged into main via PR #1
 
 ## P0 release work
 
-[PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) compares `feat/safe-releases` with main at `fa7cf74`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
+[PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) compares `feat/safe-releases` with main at `fe91957`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
 
 - `node --test tests/*.mjs` passed locally, including the new timeout, authentication/schema and disk-token/binding tests.
 - `LINKUP_TEST_WEBENGINE=1 QT_QPA_PLATFORM=offscreen QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v` passed all 8 Linux tests locally. Two packaged versions retained the Qt WebEngine IndexedDB item and blob, browser settings and session, native SQLite history and native session. The rollback test confirmed that failure to launch retains the old version.
 - Android checks on the implementation branch include assembling and linting the APK, API 35 smoke tests and in-place update from versionCode 2 to 3 under a disposable signing key. The first run built and linted successfully, but the old app could not load the new instrumentation APK, which relied on Kotlin from the new target. The test builds instrumentation against each corresponding target. [First implementation CI run](https://github.com/SDAkshevskij/Linkup/actions/runs/46033722811)
+- The second attempt exposed a WebView test-harness issue: JavaScript evaluated from instrumentation could not resolve a relative module import. The fixture now uses the production IndexedDB name and object stores directly. [Second CI run](https://github.com/SDAkshevskij/Linkup/actions/runs/46034479383)
 - The owner reported a physical Android connection problem in 0.2.0. Device-specific cause and behavior with a real cloud account still need confirmation. The regression scenarios use synthetic data.
 - Production key setup and publication are pending the owner. GitHub reports no deployment environments configured. The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
+
+- Additional feedback in main covers Android status/navigation bars and notification shade overlap, keyboard and orientation state, and the conspicuous settings scrollbar. Those items remain open in TASKS.md.
 
 ## Next action for Codex
 

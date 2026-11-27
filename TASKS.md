@@ -19,6 +19,13 @@
 - [ ] Confirm cloud connection on a physical Android device with a dedicated test account. The reported device-specific cause remains unverified.
 - [ ] Owner reviews the workflow, creates and backs up the signing key privately, configures the protected GitHub environment, and dispatches the first production release after merge. Never share the private key or its password in chat or Git.
 
+## P0 follow-up — Android mobile UI
+
+- [ ] Android responsive UI / safe areas: fix system status bar, navigation bar, display cutout, notification shade transitions and IME overlap. Use actual WindowInsets (including displayCutout/systemBars/IME) and coordinate native WebView padding with CSS viewport/safe-area handling; avoid double insets. Keep headers, navigation, composer, settings fields, close/save/connect buttons fully visible or reachable by scrolling in portrait and landscape, including gesture and three-button navigation. No horizontal overflow; ensure dialog widths and touch targets fit small screens.
+- [ ] Preserve UI state across orientation changes, Activity recreation and background/resume: selected page/filter, open settings and other dialogs, scroll position, unsaved form edits, composer text/attachments and pending connection state. Do not lose data, close settings, trigger duplicate sends/requests, or reset auth merely because device rotates. Keep unsaved sensitive credentials in appropriate transient state; never log or persist raw passwords/tokens insecurely. Investigate Android lifecycle and WebView restoration rather than locking orientation.
+- [ ] Replace conspicuous default light/native scrollbar (owner screenshot shows a wide white track with arrow controls in dark UI) with unobtrusive thin dark-theme scrollbar, no bright track/arrows, matching existing palette; preferably fade when idle on mobile where supported. Preserve touch scrolling, accessibility and desktop wheel/keyboard usability. Audit all scroll containers and dialogs on Android and Linux.
+- [ ] Mobile regression coverage: emulator portrait/landscape (including rotation while settings open with synthetic unsaved input and while connecting), compact viewport, system insets and keyboard, background/resume; verify no clipped or inaccessible controls, no horizontal overflow, no lost edits/duplicate operations and usable scrolling. Capture before/after screenshots in CI diagnostics without credentials and request physical-phone confirmation.
+
 ## P1 — follow-up
 - [ ] Real Linux Mint X11 runtime/package verification; Wayland deferred.
 - [ ] End-to-end transfer and activity sync with test accounts; actual Android permission/GPS/background checks.

@@ -6,6 +6,10 @@
 - Kept the Android app ID and WebView origin and the Linux user data directory and Qt WebEngine origin across upgrades. Added fixture-based upgrade and data retention tests, including Android rejection of an incompatible signing key and Linux startup rollback.
 - Added separate Supabase and cloud-disk connection progress, timeouts, validation feedback and success states. Documented the debug APK transition and release-key setup. [Release guide](linkup-v0.2.0/RELEASES.md)
 
+## Planned mobile UI work
+
+- Improve Android safe areas, keyboard layout, orientation and lifecycle restoration, and dark-theme scrollbars. Add mobile regression coverage.
+
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.
 - Added optional native usage/activity and location collection, local storage, cloud upload and colored daily timeline with device filtering.
