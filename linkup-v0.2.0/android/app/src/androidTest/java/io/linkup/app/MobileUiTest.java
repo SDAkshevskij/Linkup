@@ -105,7 +105,9 @@ public class MobileUiTest {
                 waitTrue(scenario, insideViewport("#checkUpdate") + " && " + insideViewport("#settingsDialog [data-close]"));
                 waitTrue(scenario, SETTINGS + ".scrollHeight > " + SETTINGS + ".clientHeight && "
                         + SETTINGS + ".scrollTop > 0");
-                waitTrue(scenario, "getComputedStyle(" + SETTINGS + ").scrollbarWidth==='thin'");
+                waitTrue(scenario, "CSS.supports('scrollbar-width: thin')"
+                        + " ? getComputedStyle(" + SETTINGS + ").scrollbarWidth==='thin'"
+                        + " : getComputedStyle(" + SETTINGS + ",'::-webkit-scrollbar').width==='6px'");
 
                 tap(scenario, "#email");
                 waitTrue(scenario, "document.activeElement.id==='email'");
@@ -209,9 +211,10 @@ public class MobileUiTest {
     }
 
     private static String insideViewport(String selector) {
-        return "(()=>{const r=document.querySelector('" + selector + "').getBoundingClientRect();"
+        return "(()=>{const el=document.querySelector('" + selector + "'), r=el.getBoundingClientRect();"
+                + "const hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);"
                 + "return r.width>0 && r.height>0 && r.left>=-1 && r.right<=innerWidth+1"
-                + " && r.top>=-1 && r.bottom<=innerHeight+1})()";
+                + " && r.top>=-1 && r.bottom<=innerHeight+1 && el.contains(hit)})()";
     }
 
     private static void tap(ActivityScenario<MainActivity> scenario, String selector) throws Exception {

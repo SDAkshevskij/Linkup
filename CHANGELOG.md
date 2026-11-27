@@ -7,9 +7,8 @@
 - Added separate Supabase and cloud-disk connection progress, timeouts, validation feedback and success states. Documented the debug APK transition and release-key setup. [Release guide](linkup-v0.2.0/RELEASES.md)
 - Verified Android 0.2.0 → 0.2.1 on API 35 using a disposable signing key, including data retention and rejection of an incompatible signature. Verified Linux package update, data retention and startup rollback, 10 shared JS tests, 8 Linux tests and 3 Android smoke tests. Owner signing and production publication remain pending. [CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
 
-## Planned mobile UI work
-
-- Improve Android safe areas, keyboard layout, orientation and lifecycle restoration, and dark-theme scrollbars. Add mobile regression coverage.
+- Apply Android system bar, cutout and keyboard insets at the native container. Keep the live WebView through rotation and in-process Activity recreation, preserving open dialogs, transient form state, draft files and active connection requests.
+- Improve compact Android settings and composer layout and theme scrollbars in the shared UI. Add portrait and landscape emulator coverage with synthetic screenshots and signed-upgrade regression checks.
 
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.

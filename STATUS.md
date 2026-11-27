@@ -1,6 +1,6 @@
 # Development status — 2026-11-27
 
-LinkUp v0.2.0 is experimental. The Android fixes were merged into main via PR #1. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
+Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merged into main via PR #1. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
 
 ## Verified baseline (v0.2.0)
 - `node --test tests/test_activity.mjs tests/test_cloud.mjs` on CI with Node 22 ran 7 tests, all passing.
@@ -11,7 +11,7 @@ LinkUp v0.2.0 is experimental. The Android fixes were merged into main via PR #1
 
 ## P0 release work
 
-[PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) compares `feat/safe-releases` with main at `fe91957`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
+[PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) merged into main at `be9590f`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
 
 - `node --test tests/*.mjs` passed 10 tests on CI, including timeout, authentication/schema and disk-token/binding scenarios. [CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
 - `gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest` passed. Lint reported 0 errors and 13 warnings. JVM unit tests reported `NO-SOURCE`. `gradle :app:connectedDebugAndroidTest` passed all 3 smoke tests on API 35. The standalone upgrade test is selected via instrumentation arguments and skipped in that smoke-test invocation. [CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
@@ -21,8 +21,14 @@ LinkUp v0.2.0 is experimental. The Android fixes were merged into main via PR #1
 - The owner reported a physical Android connection problem in 0.2.0. Device-specific cause and behavior with a real cloud account still need confirmation. The regression scenarios use synthetic data.
 - Production key setup and publication are pending the owner. GitHub reports no deployment environments configured. The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
 
-- Additional feedback in main covers Android status/navigation bars and notification shade overlap, keyboard and orientation state, and the conspicuous settings scrollbar. Those items remain open in TASKS.md.
+## P0 Android mobile UI
+
+Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3)
+
+- Apply system bar, cutout, and IME insets once at the native view container. Fit the compact composer and settings scroll container to this viewport.
+- Handle rotation with the active WebView. Reattach that WebView on in-process Activity recreation to preserve dialogs, draft files, scroll position, pending requests and transient credentials in memory.
+- `node --test tests/*.mjs` passed locally. The baseline main CI passed Android, signed upgrade and Linux tests. The branch adds `bash ../tools/test-android-mobile.sh` for the device matrix, lifecycle and screenshots. The first run built and linted the APK and captured baseline screens. Gradle removed app-owned screenshots during package cleanup, so the screenshot test now writes to a disposable shell-owned path. [Main CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46037574709) · [Branch CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46038612229)
 
 ## Next action for Codex
 
-Review [PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) and the protected release workflow. After merge, the owner can configure `linkup-release` and dispatch the first release from `main`. Validate the settings feedback on a physical Android phone with a dedicated cloud test account.
+Review PR #3 after the Android and Linux checks complete. Verify system bars, cutouts and keyboard behavior on a physical Android phone. Production signing still depends on the owner configuring `linkup-release`, and the original cloud report needs a physical-device test with a dedicated account.

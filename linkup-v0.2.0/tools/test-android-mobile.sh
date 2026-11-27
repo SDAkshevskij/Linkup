@@ -12,11 +12,12 @@ baseline=be9590f5f4c98b840552ed764e69a553b4acf11b
 work=$(mktemp -d)
 nav=com.android.internal.systemui.navbar
 cutout=com.android.internal.display.cutout.emulation.tall
-screens=/sdcard/Android/data/io.linkup.app/files/mobile-screenshots
+screens=/data/local/tmp/linkup-mobile
 diagnostics="$project/android/app/build/mobile-diagnostics"
 mkdir -p "$diagnostics"/{before,gesture,three-button}
 
-active_nav=$(adb shell cmd overlay list | tr -d '\r' | sed -n "s/^\[x\] \($nav\..*\)$/\1/p" | head -1)
+active_nav=$(adb shell cmd overlay list | tr -d '\r' | sed -n "s/^\[x\] \($nav\..*\)$/\1/p")
+old_ime=$(adb shell settings get secure show_ime_with_hard_keyboard | tr -d '\r')
 cleanup() {
   adb shell wm size reset >/dev/null || true
   adb shell wm density reset >/dev/null || true
@@ -24,6 +25,12 @@ cleanup() {
   if [[ -n $active_nav ]]; then
     adb shell cmd overlay enable-exclusive --category "$active_nav" >/dev/null || true
   fi
+  if [[ $old_ime == null ]]; then
+    adb shell settings delete secure show_ime_with_hard_keyboard >/dev/null || true
+  else
+    adb shell settings put secure show_ime_with_hard_keyboard "$old_ime" >/dev/null || true
+  fi
+  adb shell "rm -f $screens-*.png" >/dev/null || true
   rm -rf -- "$work"
 }
 trap cleanup EXIT
@@ -32,8 +39,10 @@ set_overlay() {
   adb shell cmd overlay list | tr -d '\r' | grep -Fx "[x] $1"
 }
 collect_screens() {
-  for name in "${@:2}"; do
-    adb pull "$screens/$name.png" "$diagnostics/$1/$name.png"
+  local set=$1
+  shift
+  for name in "$@"; do
+    adb pull "$screens-$name.png" "$diagnostics/$set/$name.png"
   done
 }
 adb shell wm size 480x854
@@ -54,13 +63,26 @@ cp "$project/android/$sources/MobileScreenshotTest.java" "$legacy/$sources/"
     -Pandroid.testInstrumentationRunnerArguments.class=io.linkup.app.MobileScreenshotTest
 )
 collect_screens before portrait-settings landscape-settings
-adb uninstall io.linkup.app.test
-adb uninstall io.linkup.app
+adb uninstall io.linkup.app.test >/dev/null 2>&1 || true
+adb uninstall io.linkup.app >/dev/null 2>&1 || true
+adb shell "rm -f $screens-*.png"
 
 cd "$project/android"
-gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true
+result=0
+gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true || result=$?
+cp -R app/build/outputs/androidTest-results/connected/debug "$diagnostics/gesture/results" || true
+if [[ $result -ne 0 ]]; then
+  collect_screens gesture portrait-settings landscape-settings portrait-keyboard landscape-keyboard || true
+  exit "$result"
+fi
 collect_screens gesture portrait-settings landscape-settings portrait-keyboard landscape-keyboard
 set_overlay "$nav.threebutton"
+adb shell "rm -f $screens-*.png"
 gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true \
-  '-Pandroid.testInstrumentationRunnerArguments.class=io.linkup.app.MobileUiTest#keepsFocusedInputsAndActionsReachableInBothOrientations'
+  '-Pandroid.testInstrumentationRunnerArguments.class=io.linkup.app.MobileUiTest#keepsFocusedInputsAndActionsReachableInBothOrientations' || result=$?
+cp -R app/build/outputs/androidTest-results/connected/debug "$diagnostics/three-button/results" || true
+if [[ $result -ne 0 ]]; then
+  collect_screens three-button portrait-keyboard landscape-keyboard || true
+  exit "$result"
+fi
 collect_screens three-button portrait-keyboard landscape-keyboard

@@ -1,7 +1,10 @@
 package io.linkup.app;
 
+import android.app.UiAutomation;
 import android.content.pm.ActivityInfo;
 import android.graphics.Bitmap;
+import android.os.Build;
+import android.os.ParcelFileDescriptor;
 import androidx.test.core.app.ActivityScenario;
 import androidx.test.ext.junit.runners.AndroidJUnit4;
 import androidx.test.platform.app.InstrumentationRegistry;
@@ -32,13 +35,28 @@ public class MobileScreenshotTest {
     }
 
     static void capture(String name) throws Exception {
-        Bitmap shot = InstrumentationRegistry.getInstrumentation().getUiAutomation().takeScreenshot();
+        UiAutomation automation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        Bitmap shot = automation.takeScreenshot();
         assertNotNull("screen capture", shot);
-        File directory = InstrumentationRegistry.getInstrumentation().getTargetContext()
-                .getExternalFilesDir("mobile-screenshots");
-        assertNotNull(directory);
-        try (FileOutputStream output = new FileOutputStream(new File(directory, name + ".png"))) {
-            assertTrue(shot.compress(Bitmap.CompressFormat.PNG, 100, output));
+        try {
+            if (Build.VERSION.SDK_INT >= 31) {
+                // Gradle uninstalls the tested app, including its external files.
+                ParcelFileDescriptor[] pipes = automation.executeShellCommandRw(
+                        "dd of=/data/local/tmp/linkup-mobile-" + name + ".png");
+                try (var result = new ParcelFileDescriptor.AutoCloseInputStream(pipes[0])) {
+                    try (var output = new ParcelFileDescriptor.AutoCloseOutputStream(pipes[1])) {
+                        assertTrue(shot.compress(Bitmap.CompressFormat.PNG, 100, output));
+                    }
+                    assertTrue("screenshot writer finished", result.read() == -1);
+                }
+            } else {
+                File directory = InstrumentationRegistry.getInstrumentation().getTargetContext()
+                        .getExternalFilesDir("mobile-screenshots");
+                assertNotNull(directory);
+                try (FileOutputStream output = new FileOutputStream(new File(directory, name + ".png"))) {
+                    assertTrue(shot.compress(Bitmap.CompressFormat.PNG, 100, output));
+                }
+            }
         } finally {
             shot.recycle();
         }
