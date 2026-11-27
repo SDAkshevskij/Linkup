@@ -95,6 +95,11 @@ public class UpgradeTest {
                 """.replace("FIXTURE", FIXTURE) + "})(" + seed + ")");
             waitTrue(scenario, BUFFER + "!=='pending'");
             assertEquals("IndexedDB " + phase, "true", js(scenario, BUFFER));
+            if (seed) {
+                // Chromium batches LocalStorage commits for five seconds. The test runner
+                // kills the process on exit, so keep WebView alive until that commit can run.
+                Thread.sleep(6500);
+            }
         }
     }
 }

@@ -81,6 +81,8 @@ instrument() {
   tr -d '\r' < "$work/$1.log" | grep -Fx 'OK (1 test)'
 }
 instrument seed "$previous"
+# Confirm that the old WebView profile has persisted the fixture after its first process exits.
+instrument verify "$previous"
 if result=$(adb install -r "$work/wrong.apk" 2>&1); then
   echo 'Android accepted an incompatible signature' >&2
   exit 1
