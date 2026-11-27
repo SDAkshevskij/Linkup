@@ -1,10 +1,12 @@
 # Roadmap
 
-The items below are proposed sequencing, not promises or approval to implement unrelated features.
+TASKS.md is the authoritative priority/dependency contract; this file is a summary, not additional implementation scope.
 
-1. Android CI baseline achieved (compile, lint, emulator smoke tests and tested APK). Keep diagnostics accessible.
-2. **P0 — user priority:** persistent owner-controlled Android signing, versioned GitHub Releases and in-app updates on Android and Linux Mint without data loss. Verify upgrade across two builds, handle one-time debug migration safely. Include Android cloud connection feedback and diagnosis, responsive mobile layout and safe areas, orientation/lifecycle state preservation, and dark-theme scrollbars in the first update; defer unrelated new modules.
-3. Validate Transfer across real Android/Linux devices with a dedicated test Supabase/cloud account. Improve durable background sync and OAuth renewal; test offline recovery and deletion conflicts.
-4. **P0 now:** prove and repair real Activity collection on physical Android and Linux Mint, add collector health diagnostics and true end-to-end tests, then redesign Activity permission/settings UX and timeline according to the product-design rules in AGENTS.md. Only after real events work should accuracy/overlap/location refinements continue.
-5. Security and reliability: protect local secrets, plan end-to-end encryption, retention/backup controls and trusted device model.
-6. Later optional modules (not yet committed): device status, notifications, focus and automation, safe remote actions with explicit permission. Consider Shizuku only as an opt-in extension, not a baseline dependency.
+- Completed baseline: Android compile/lint/emulator, update and UI regression evidence; owner production signing and real-device validation are still pending.
+- P0: immediate privacy containment, repair real Android/Linux X11 Activity collection and verify basic cloud connectivity/release continuity with synthetic test data.
+- P1: LinkUp Security v1 (S1–S5), the common E2EE channel for all user payloads, and local HeliBoard-based Android IME with offline on-device speech from Ask Fragments. Local history encryption and legacy migration are explicitly out of scope. Independent local IME work may proceed in parallel.
+- P2: automatic cross-device clipboard, background Transfer and OAuth improvements after applicable E2EE gates; Activity redesign and device UX/package validation.
+- P3: investigate Wayland; support only after a reliable implementation is verified.
+- Other possible modules (notifications, focus, automation, explicit safe remote actions) are ideas only, not current assignments.
+
+Do not upload user content without verified E2EE. Keep local-only operation available, and do not publish production releases without owner approval.
