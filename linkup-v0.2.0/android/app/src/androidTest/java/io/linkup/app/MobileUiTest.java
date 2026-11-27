@@ -121,11 +121,19 @@ public class MobileUiTest {
                         .show(WindowInsetsCompat.Type.ime()));
                 awaitInsets(scenario, true);
                 scrollTo(scenario, "#email");
-                waitTrue(scenario, insideViewport("#email") + " && " + NO_OVERFLOW);
+                MobileScreenshotTest.capture(scenario, landscape ? "landscape-keyboard" : "portrait-keyboard");
+                try {
+                    waitTrue(scenario, insideViewport("#email") + " && " + NO_OVERFLOW);
+                } catch (AssertionError failure) {
+                    String geometry = js(scenario, "[innerWidth,innerHeight,document.documentElement.scrollWidth,"
+                            + SETTINGS + ".scrollTop," + SETTINGS + ".getBoundingClientRect().toJSON(),"
+                            + "document.querySelector('#email').getBoundingClientRect().toJSON()]");
+                    throw new AssertionError((landscape ? "Landscape" : "Portrait") + " IME geometry: " + geometry, failure);
+                }
+                scrollTo(scenario, "#settingsDialog [data-close]");
                 waitTrue(scenario, insideViewport("#settingsDialog [data-close]"));
                 scrollTo(scenario, "#saveCloud");
                 waitTrue(scenario, insideViewport("#saveCloud"));
-                MobileScreenshotTest.capture(scenario, landscape ? "landscape-keyboard" : "portrait-keyboard");
 
                 hideKeyboard(scenario);
                 js(scenario, "document.querySelector('#settingsDialog').close();true");

@@ -65,7 +65,13 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: bash -c 'cd linkup-v0.2.0/android; bash ../tools/test-android-mobile.sh && bash ../tools/test-android-upgrade.sh; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
+          script: >-
+            bash -c 'cd linkup-v0.2.0/android || exit 1;
+            mobile=0; upgrade=0;
+            bash ../tools/test-android-mobile.sh || mobile=$?;
+            bash ../tools/test-android-upgrade.sh || upgrade=$?;
+            adb logcat -d > ../android-logcat.txt || true;
+            test "$mobile" -eq 0 && test "$upgrade" -eq 0'
       - name: Test reports and logs
         if: always()
         uses: actions/upload-artifact@v4

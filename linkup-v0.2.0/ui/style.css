@@ -54,3 +54,9 @@
     .settings-fields { padding: 4px 12px 12px; }
     .dialog-section { margin-top: 14px; }
 }
+
+/* A landscape keyboard can leave room for just one form control. */
+@media (max-height: 220px) {
+    #settingsDialog { max-height: calc(100dvh - 8px); scroll-padding-block: 6px; }
+    #settingsDialog .dialog-head { position: static; }
+}
