@@ -6,7 +6,8 @@
 - Added Yandex Disk as a storage choice; retained Google Drive.
 - Imported code into GitHub, added emulator smoke-test CI.
 - Corrected workflow directory paths and SDK package configuration. [Baseline CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46024155107) confirmed SDK setup, seven shared tests and debug APK assembly.
-- Handled Android location permission failures and checked consent again before storing a fix. Documented the scoped lint exception for the Usage Access permission declaration.
+- Handled Android location permission failures and checked consent again before storing a fix. Scoped the lint exception to Android's Usage Access declaration, which requires user approval in system Settings.
+- Verified `:app:assembleDebug`, `:app:lintDebug` (0 errors, 11 warnings), `:app:assembleDebugAndroidTest`, and `:app:connectedDebugAndroidTest` (2 passed on API 35). CI passed all 7 shared JS tests and published the tested debug APK. The Linux-agent unit tests passed locally (4). [Successful CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710) · [APK](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710/artifacts/15211278532)
 - Added shared repository context and handoff instructions for ChatGPT and Codex.
 
 ## v0.1.0 — prototype
