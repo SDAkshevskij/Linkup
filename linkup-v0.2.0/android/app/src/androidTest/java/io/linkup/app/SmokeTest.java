@@ -38,6 +38,8 @@ public class SmokeTest {
         i.putExtra(Intent.EXTRA_TEXT, "LinkUp CI share test");
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(i)) {
             waitTrue(scenario, "!!document.querySelector('#message') && document.querySelector('#message').value.includes('LinkUp CI share test')");
+            scenario.recreate();
+            waitTrue(scenario, "document.querySelector('#message').value === 'LinkUp CI share test'");
         }
     }
 }

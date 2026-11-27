@@ -65,7 +65,13 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: bash -c 'cd linkup-v0.2.0/android; gradle :app:connectedDebugAndroidTest && bash ../tools/test-android-upgrade.sh; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
+          script: >-
+            bash -c 'cd linkup-v0.2.0/android || exit 1;
+            mobile=0; upgrade=0;
+            bash ../tools/test-android-mobile.sh || mobile=$?;
+            bash ../tools/test-android-upgrade.sh || upgrade=$?;
+            adb logcat -d > ../android-logcat.txt || true;
+            test "$mobile" -eq 0 && test "$upgrade" -eq 0'
       - name: Test reports and logs
         if: always()
         uses: actions/upload-artifact@v4
@@ -74,6 +80,7 @@ jobs:
           path: |
             linkup-v0.2.0/android/app/build/reports/
             linkup-v0.2.0/android/app/build/outputs/androidTest-results/
+            linkup-v0.2.0/android/app/build/mobile-diagnostics/
             linkup-v0.2.0/android-logcat.txt
           if-no-files-found: warn
       - name: Tested debug APK

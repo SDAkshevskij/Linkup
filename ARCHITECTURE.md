@@ -13,6 +13,10 @@
 ## Data flow
 Local-first: native SQLite activity storage and IndexedDB transfer storage; Supabase for authorized structured records and sync, Yandex Disk or Google Drive for binary attachments. Transfer uses foreground Realtime/polling and queued changes; activity background uploads are opt-in with a separate auth session. No continuous guarantee on Android scheduling. Location is periodic and optional, not a continuous route. Android system usage access and location permissions must be granted by the owner.
 
+## Android window and UI lifecycle
+
+Android applies stable system bar and cutout insets and the visible IME inset to the native container. The WebView fits within that measured viewport, so the shared stylesheet can size the composer and dialogs without adding system insets. Rotation resizes the Activity in place. In-process Activity recreation reattaches the live WebView and rebinds its bridge to the new Activity. DOM state, pending connections, draft attachments and unsaved credentials stay in memory. Durable data still uses the existing SQLite, IndexedDB and WebView settings stores.
+
 ## Updates and local data
 
 Both native shells read stable releases from the LinkUp GitHub Releases API and check the SHA-256 digest of their platform asset. Android also checks the package ID, numeric version and signing certificate before passing its private cached APK to the system installer. It retains the app ID and WebView origin. Linux stages code under `~/.local/opt/linkup/versions`, switches `current` atomically and rolls back failed startup. Its SQLite database, persistent Qt profile and localhost origin are retained. [Release and upgrade guide](linkup-v0.2.0/RELEASES.md)
@@ -29,7 +33,8 @@ cd android
 gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
 # With an authorized connected test emulator:
 gradle :app:connectedDebugAndroidTest
-# This script resets LinkUp on the connected test emulator:
+# These scripts reset LinkUp on a disposable emulator and change its display settings for the mobile suite:
+bash ../tools/test-android-mobile.sh
 bash ../tools/test-android-upgrade.sh
 ```
 See nested README.md and ANDROID-CI.md for setup details. Verify current source and tool versions before changing the workflow. No real cloud tokens are required for mock/smoke tests.
