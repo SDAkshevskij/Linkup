@@ -41,7 +41,7 @@ if [[ -n $previous ]]; then
   gh api "${api#https://api.github.com/}" -H 'Accept: application/octet-stream' > "$private/previous.apk"
   [[ $(cert "$private/previous.apk") == "$fingerprint" ]]
 fi
-python3 "$project/tools/package-linux.py" "$output/LinkUp-Linux-$code.zip"
+python3 "$project/tools/package_linux.py" "$output/LinkUp-Linux-$code.zip"
 cd "$output"
 sha256sum "LinkUp-Android-$code.apk" "LinkUp-Linux-$code.zip" > SHA256SUMS
 sha256sum -c SHA256SUMS

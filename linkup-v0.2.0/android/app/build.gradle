@@ -5,7 +5,7 @@ rootProject.file('../version.properties').withInputStream { releaseVersion.load(
 android {
  namespace 'io.linkup.app'
  compileSdk 35
- defaultConfig { applicationId 'io.linkup.app'; minSdk 29; targetSdk 35; versionCode providers.gradleProperty('linkupTestVersionCode').orElse(releaseVersion.getProperty('versionCode')).get().toInteger(); versionName releaseVersion.getProperty('versionName'); testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
+ defaultConfig { applicationId 'io.linkup.app'; minSdk 29; targetSdk 35; versionCode releaseVersion.getProperty('versionCode').toInteger(); versionName releaseVersion.getProperty('versionName'); testInstrumentationRunner 'androidx.test.runner.AndroidJUnitRunner' }
  compileOptions { sourceCompatibility JavaVersion.VERSION_17; targetCompatibility JavaVersion.VERSION_17 }
  sourceSets { main { assets.srcDirs = ['../../ui'] } }
 }

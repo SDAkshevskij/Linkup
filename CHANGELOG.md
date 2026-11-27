@@ -1,7 +1,10 @@
 # Changelog
 
-## Planned next release (not implemented)
-- Owner prioritized stable APK signing, GitHub Releases and in-app updates on Android/Linux with upgrade/data preservation tests. Android cloud connection feedback is also a P0 issue. See TASKS.md.
+## v0.2.1 — pending owner-signed publication
+
+- Added main-only GitHub Releases workflow using an owner-controlled PKCS12. Both clients check release versions and download checksums. Android verifies the APK identity and signing certificate and invokes the system installer. Linux updates its per-user installation and restores the previous version if the new UI fails to load.
+- Kept the Android app ID and WebView origin and the Linux user data directory and Qt WebEngine origin across upgrades. Added fixture-based upgrade and data retention tests, including Android rejection of an incompatible signing key and Linux startup rollback.
+- Added separate Supabase and cloud-disk connection progress, timeouts, validation feedback and success states. Documented the debug APK transition and release-key setup. [Release guide](linkup-v0.2.0/RELEASES.md)
 
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.

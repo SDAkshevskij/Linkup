@@ -91,7 +91,7 @@ class UpdateDialog(QObject):
                 directory = Path(tempfile.mkdtemp(prefix="download-", dir=updater.BASE))
                 path = directory / "linkup.zip"
                 updater.download(release, path, self.stop.is_set, self.progressed.emit)
-                self.downloaded.emit((path, release.version))
+                self.downloaded.emit((path, release))
             except Exception as error:
                 if directory is not None:
                     directory.rmdir()
@@ -101,7 +101,7 @@ class UpdateDialog(QObject):
 
     def restart(self, result):
         self.finish()
-        path, version = result
+        path, release = result
         if self.stop.is_set() or QMessageBox.question(
                 self.window, "Обновление готово", "Установить обновление и перезапустить LinkUp?"
         ) != QMessageBox.Yes:
@@ -110,7 +110,7 @@ class UpdateDialog(QObject):
             return
         try:
             subprocess.Popen([sys.executable, updater.__file__, "apply", str(path),
-                              str(version), str(os.getpid())], start_new_session=True)
+                              str(release.version), str(os.getpid()), release.digest], start_new_session=True)
         except OSError as error:
             path.unlink()
             path.parent.rmdir()

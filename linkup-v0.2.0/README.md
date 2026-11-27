@@ -43,3 +43,7 @@ Linux: активное X11-окно по WM_CLASS, опрос ~5 с, сесси
 `node --test tests/*.mjs` — 7 тестов: transport mocks, Realtime, Google Drive, Яндекс Диск, объединение времени, цвета. `python3 tests/test_agent.py` — 4 теста SQLite/состояния/сбора. `python3 -m py_compile linux/*.py`, `bash -n linux/install.sh android/build-apk.sh`, `node --check` для JS. На момент выпуска нет Android SDK, Qt WebEngine, реальных облачных credentials; браузерная среда ограничена Chromium URLBlocklist. APK не собран, .deb сформирован из исходников, установка на реальном Linux Mint не проверена. Не production-релиз.
 
 Для удалённой сборки Android без локального SDK в архив включён `.github/workflows/android.yml`: загрузите **содержимое** `linkup-v0.2.0` в корень личного GitHub-репозитория, включите Actions, запустите `Android debug APK` вручную и скачайте артефакт `LinkUp-Android-debug`, если сборка успешно завершится. Workflow не был запущен или проверен в GitHub; debug-подпись от разных CI-сборок может различаться, поэтому для обновлений без переустановки нужна постоянная подпись.
+
+## Выпуски и обновления
+
+[Подпись, GitHub Releases, обновления Android/Linux и переход с debug APK](RELEASES.md).

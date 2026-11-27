@@ -42,6 +42,17 @@ public class SmokeTest {
             waitTrue(scenario, "document.querySelector('#activityStatus').textContent.length > 0");
         }
     }
+    @Test public void showsSettingsErrorsWithoutLeavingAndroidDialog() throws Exception {
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            waitTrue(scenario, "typeof window.linkupImportShare==='function'");
+            js(scenario, "document.querySelector('#mobileSettings').click();"
+                    + "document.querySelector('#sbUrl').value='invalid-url';document.querySelector('#saveCloud').click();true");
+            waitTrue(scenario, "document.querySelector('#settingsDialog').open && "
+                    + "document.querySelector('#supabaseStatus').textContent.includes('HTTPS')");
+            js(scenario, "document.querySelector('#driveConnect').click();true");
+            waitTrue(scenario, "document.querySelector('#diskStatus').textContent.includes('Supabase')");
+        }
+    }
     @Test public void importsSharedText() throws Exception {
         Context c = ApplicationProvider.getApplicationContext();
         Intent i = new Intent(c, MainActivity.class).setAction(Intent.ACTION_SEND).setType("text/plain");

@@ -202,8 +202,17 @@ def launch(target, env=None):
     return subprocess.Popen([sys.executable, str(target / "linux/app.py")], env=env, start_new_session=True)
 
 
-def activate(base, archive, expected, previous_pid, timeout=35):
+def activate(base, archive, expected, previous_pid, timeout=35, digest=None):
     with install_lock(base):
+        if digest is not None:
+            if archive.stat().st_size > LIMIT:
+                raise ValueError("Пакет превышает допустимый размер")
+            with archive.open("rb") as input_file:
+                actual = hashlib.sha256()
+                for block in iter(lambda: input_file.read(65536), b""):
+                    actual.update(block)
+                if not hmac.compare_digest(actual.hexdigest(), digest):
+                    raise ValueError("Контрольная сумма пакета не совпадает")
         current = base / "current"
         old = current.resolve(strict=True)
         if expected <= version(old):
@@ -247,12 +256,18 @@ def main():
     apply.add_argument("archive", type=Path)
     apply.add_argument("version", type=int)
     apply.add_argument("pid", type=int)
+    apply.add_argument("digest")
     args = parser.parse_args()
     if args.command == "install":
         install_initial(BASE, SOURCE)
         return
+    directory = args.archive.parent
+    if (directory.parent != BASE or not directory.name.startswith("download-") or directory.is_symlink()
+            or args.archive.name != "linkup.zip" or args.archive.is_symlink()
+            or not re.fullmatch(r"[0-9a-f]{64}", args.digest)):
+        parser.error("Недопустимый подготовленный пакет обновления")
     try:
-        activate(BASE, args.archive, args.version, args.pid)
+        activate(BASE, args.archive, args.version, args.pid, digest=args.digest)
     except Exception as error:
         # Store only a local, transient diagnostic for the restarted UI.
         (BASE / "update-error").write_text(str(error)[:500])
