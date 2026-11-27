@@ -1,6 +1,6 @@
 # Development status — 2026-11-27
 
-LinkUp v0.2.0 is experimental. The Android fixes are in commit `1945408` on `fix/android-ci`. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
+LinkUp v0.2.0 is experimental. The Android fixes were merged into main via PR #1. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
 
 ## Verified
 - `node --test tests/test_activity.mjs tests/test_cloud.mjs` on CI with Node 22 ran 7 tests, all passing.
@@ -15,5 +15,8 @@ LinkUp v0.2.0 is experimental. The Android fixes are in commit `1945408` on `fix
 - CI uses a temporary debug signing key. Persistent APK signing and upgrade validation are the next roadmap item.
 - Transfer background sync, automated disk OAuth renewal, E2EE, and Linux Mint X11 packaging and runtime validation remain open. Wayland is deferred.
 
-## Next action for Codex
-Review and merge [PR #1](https://github.com/SDAkshevskij/Linkup/pull/1) after its checks pass. Continue with persistent Android signing and upgrade validation using an owner-controlled key outside the repository.
+## Owner feedback and next action for Codex
+- Owner has installed and opened the tested Android APK on a physical phone and reports that Linux connects while Android stays in settings silently. Cloud connection cause is unverified.
+- Owner explicitly prioritizes a safe update mechanism. Start P0 in TASKS.md: implement signing configuration, release pipeline and update UX for Android and Linux, preserving user data. Implement and test using a disposable test signing key until the owner configures the production key. Include Android connection feedback and diagnostics in the first update.
+- Production signing secrets are not yet configured or verified. Proposed contract: protected GitHub environment `linkup-release`, secrets `LINKUP_KEYSTORE_BASE64`, `LINKUP_KEYSTORE_PASSWORD`, PKCS12 alias `linkup`. Read release workflow and review it before granting access to these secrets. Do not expose secrets to PR jobs or untrusted code.
+- No production release or in-app updater is implemented or verified as of this handoff. Current debug build may require a one-time migration/reinstall; preserve/export unsynced data before uninstall. No need for new Supabase/Yandex credentials just to build or test updates.

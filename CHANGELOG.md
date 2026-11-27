@@ -1,5 +1,8 @@
 # Changelog
 
+## Planned next release (not implemented)
+- Owner prioritized stable APK signing, GitHub Releases and in-app updates on Android/Linux with upgrade/data preservation tests. Android cloud connection feedback is also a P0 issue. See TASKS.md.
+
 ## v0.2.0 — experimental
 - Installed Android Java and Linux PyQt5 shells with local shared UI; preserved Transfer stream, history, file/text operations and cleanup.
 - Added optional native usage/activity and location collection, local storage, cloud upload and colored daily timeline with device filtering.
