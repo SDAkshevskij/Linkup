@@ -3,15 +3,15 @@ on:
   workflow_dispatch:
   push:
     paths:
-      - 'android/**'
-      - 'ui/**'
-      - 'tests/**'
+      - 'linkup-v0.2.0/android/**'
+      - 'linkup-v0.2.0/ui/**'
+      - 'linkup-v0.2.0/tests/**'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
-      - 'android/**'
-      - 'ui/**'
-      - 'tests/**'
+      - 'linkup-v0.2.0/android/**'
+      - 'linkup-v0.2.0/ui/**'
+      - 'linkup-v0.2.0/tests/**'
       - '.github/workflows/android.yml'
 permissions:
   contents: read
@@ -32,11 +32,12 @@ jobs:
         with:
           gradle-version: '8.9'
       - name: Shared logic tests
+        working-directory: linkup-v0.2.0
         run: node --test tests/test_activity.mjs tests/test_cloud.mjs
       - name: Install Android SDK 35
         run: sdkmanager 'platforms;android-35' 'build-tools;35.0.0'
       - name: Build and lint
-        working-directory: android
+        working-directory: linkup-v0.2.0/android
         run: gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
       - name: Enable KVM
         run: |
@@ -50,21 +51,21 @@ jobs:
           target: google_apis
           arch: x86_64
           disable-animations: true
-          script: bash -c 'cd android; gradle :app:connectedDebugAndroidTest; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
+          script: bash -c 'cd linkup-v0.2.0/android; gradle :app:connectedDebugAndroidTest; rc=$?; adb logcat -d > ../android-logcat.txt || true; exit "$rc"'
       - name: Test reports and logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Android-diagnostics
           path: |
-            android/app/build/reports/
-            android/app/build/outputs/androidTest-results/
-            android-logcat.txt
+            linkup-v0.2.0/android/app/build/reports/
+            linkup-v0.2.0/android/app/build/outputs/androidTest-results/
+            linkup-v0.2.0/android-logcat.txt
           if-no-files-found: warn
       - name: Tested debug APK
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: LinkUp-Android-debug
-          path: android/app/build/outputs/apk/debug/app-debug.apk
+          path: linkup-v0.2.0/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
