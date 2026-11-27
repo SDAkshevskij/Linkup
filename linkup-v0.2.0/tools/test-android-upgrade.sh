@@ -7,17 +7,42 @@ if [[ ! $serial =~ ^emulator-[0-9]+$ ]]; then
 fi
 export ANDROID_SERIAL="$serial"
 root=$(git rev-parse --show-toplevel)
-project="$root/linkup-v0.2.0"
+directory=linkup-v0.2.0
+project="$root/$directory"
+metadata="$directory/version.properties"
+code=$(sed -n 's/^versionCode=//p' "$project/version.properties")
+[[ $code =~ ^[1-9][0-9]{0,8}$ && $code -gt 2 ]]
+baseline=92bec824af9e56bb48d6384029812fdb0e039b63
+previous=2
+# Prefer a tagged release. For unreleased changes, use the previous version in the branch history.
+for refs in tags history; do
+  while read -r candidate; do
+    [[ -n $candidate ]] || continue
+    properties=$(git -C "$root" show "$candidate:$metadata" 2>/dev/null) || continue
+    older=$(sed -n 's/^versionCode=//p' <<< "$properties")
+    if [[ $older =~ ^[1-9][0-9]{0,8}$ && $older -lt $code && $older -gt $previous ]]; then
+      baseline=$candidate
+      previous=$older
+    fi
+  done < <(if [[ $refs == tags ]]; then
+    git -C "$root" tag --merged HEAD --list 'v*'
+  else
+    git -C "$root" log --format=%H -- "$metadata"
+  fi)
+  if [[ $previous -gt 2 ]]; then break; fi
+done
+printf 'Testing Android upgrade %s → %s\n' "$previous" "$code"
 work=$(mktemp -d)
 trap 'rm -rf -- "$work"' EXIT
 signer="${ANDROID_HOME:?}/build-tools/35.0.0/apksigner"
 mkdir "$work/old"
-git -C "$root" archive 92bec824af9e56bb48d6384029812fdb0e039b63 \
-  linkup-v0.2.0/android linkup-v0.2.0/ui | tar -x -C "$work/old"
-legacy="$work/old/linkup-v0.2.0/android"
+paths=("$directory/android" "$directory/ui")
+if [[ $previous -gt 2 ]]; then paths+=("$metadata"); fi
+git -C "$root" archive "$baseline" "${paths[@]}" | tar -x -C "$work/old"
+legacy="$work/old/$directory/android"
 test_sources=app/src/androidTest/java/io/linkup/app
 # Build each test APK against its target so target-provided libraries match that version.
-cp "$project/android/$test_sources/"{SmokeTest,UpgradeTest}.java "$legacy/$test_sources/"
+cp "$project/android/$test_sources/"{WebViewProbe,UpgradeTest}.java "$legacy/$test_sources/"
 (
   cd "$legacy"
   gradle :app:assembleDebug :app:assembleDebugAndroidTest
@@ -42,7 +67,6 @@ sign test "$work/old.apk" "$old"
 LINKUP_KEYSTORE_BASE64="$(base64 -w0 "$work/test.p12")" \
   LINKUP_KEYSTORE_PASSWORD=disposable-ci-only RUNNER_TEMP="$work" \
   bash "$project/tools/prepare-release.sh"
-code=$(sed -n 's/^versionCode=//p' "$project/version.properties")
 released="$work/linkup-release/LinkUp-Android-$code.apk"
 sign wrong "$work/wrong.apk" "$new"
 sign test "$work/old-tests.apk" "$legacy/$tests"
@@ -52,11 +76,11 @@ adb uninstall io.linkup.app >/dev/null 2>&1 || true
 adb install "$work/old.apk"
 adb install -t "$work/old-tests.apk"
 instrument() {
-  adb shell am instrument -w -e class io.linkup.app.UpgradeTest -e upgradePhase "$1" \
+  adb shell am instrument -w -e class io.linkup.app.UpgradeTest -e upgradePhase "$1" -e expectedVersion "$2" \
     io.linkup.app.test/androidx.test.runner.AndroidJUnitRunner | tee "$work/$1.log"
   tr -d '\r' < "$work/$1.log" | grep -Fx 'OK (1 test)'
 }
-instrument seed
+instrument seed "$previous"
 if result=$(adb install -r "$work/wrong.apk" 2>&1); then
   echo 'Android accepted an incompatible signature' >&2
   exit 1
@@ -65,4 +89,4 @@ printf '%s\n' "$result"
 [[ $result == *INSTALL_FAILED_UPDATE_INCOMPATIBLE* ]]
 adb install -r "$released"
 adb install -r -t "$work/new-tests.apk"
-instrument verify
+instrument verify "$code"

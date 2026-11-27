@@ -12,6 +12,8 @@ import org.junit.Test;
 import org.junit.runner.RunWith;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static io.linkup.app.WebViewProbe.js;
+import static io.linkup.app.WebViewProbe.waitTrue;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
@@ -26,16 +28,16 @@ public class UpgradeTest {
         String phase = InstrumentationRegistry.getArguments().getString("upgradePhase");
         Assume.assumeTrue("seed".equals(phase) || "verify".equals(phase));
         boolean seed = "seed".equals(phase);
+        long expectedVersion = Long.parseLong(InstrumentationRegistry.getArguments().getString("expectedVersion"));
         try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(new Intent(
                 InstrumentationRegistry.getInstrumentation().getTargetContext(), MainActivity.class))) {
-            SmokeTest ui = new SmokeTest();
-            ui.waitTrue(scenario, "document.readyState==='complete' && typeof window.linkupImportShare==='function'");
+            waitTrue(scenario, "document.readyState==='complete' && typeof window.linkupImportShare==='function'");
             AtomicReference<Exception> failure = new AtomicReference<>();
             scenario.onActivity(activity -> {
                 try (Collector collector = new Collector(activity)) {
                     PackageInfo info = activity.getPackageManager().getPackageInfo(activity.getPackageName(),
                             PackageManager.GET_SIGNING_CERTIFICATES);
-                    assertEquals(seed ? 2 : 3, info.getLongVersionCode());
+                    assertEquals(expectedVersion, info.getLongVersionCode());
                     if (seed) {
                         assertTrue(collector.p.edit().putString("upgrade_fixture", FIXTURE).commit());
                         ContentValues row = new ContentValues();
@@ -55,9 +57,9 @@ public class UpgradeTest {
             });
             if (failure.get() != null) throw failure.get();
             if (!seed) {
-                ui.waitTrue(scenario, STATE + "==='" + FIXTURE + "' && " + SESSION + "==='" + FIXTURE + "'");
+                waitTrue(scenario, STATE + "==='" + FIXTURE + "' && " + SESSION + "==='" + FIXTURE + "'");
             }
-            ui.js(scenario, "(seed => {" + """
+            js(scenario, "(seed => {" + """
                 const fixture = 'FIXTURE';
                 window.upgradeProbe = 'pending';
                 if (seed) {
@@ -91,8 +93,8 @@ public class UpgradeTest {
                     }
                 };
                 """.replace("FIXTURE", FIXTURE) + "})(" + seed + ")");
-            ui.waitTrue(scenario, BUFFER + "!=='pending'");
-            assertEquals("IndexedDB " + phase, "true", ui.js(scenario, BUFFER));
+            waitTrue(scenario, BUFFER + "!=='pending'");
+            assertEquals("IndexedDB " + phase, "true", js(scenario, BUFFER));
         }
     }
 }
