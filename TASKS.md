@@ -41,7 +41,7 @@
 
 ## P0 — redesign Activity controls and enforce LinkUp visual quality
 
-Acceptance for this section is governed by PRODUCT_QUALITY.md. The executor must propose internally at least two materially different interaction/composition approaches before choosing one, and must attach screenshots plus an explicit adversarial test matrix to the PR. “Works and looks clean” is not enough if the result is still an obvious form/dashboard solution.
+Acceptance for this section is governed by PRODUCT_QUALITY.md and EXECUTOR_PLAYBOOK.md. The executor must propose internally at least two materially different interaction/composition approaches before choosing one, and must attach screenshots plus an explicit adversarial test matrix to the PR. “Works and looks clean” is not enough if the result is still an obvious form/dashboard solution.
 
 - [ ] Replace the current checkbox + separate “Системный доступ” / “Разрешение геолокации” button layout. Use designed source cards/toggles: enabling “Приложения” launches Usage Access flow when needed; enabling “Местоположение” launches runtime/system permission flow when needed; state updates automatically on resume.
 - [ ] Move Supabase/background-session details into an “Облако / расширенные настройки” sub-surface. Only reveal the background-session password when cloud Activity sync is enabled and main Supabase is connected. Do not make the main Activity screen look like a settings form.

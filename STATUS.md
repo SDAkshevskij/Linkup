@@ -52,3 +52,8 @@ Next executor must first make collection observable and prove real end-to-end ev
 ## Product-quality directive — 2026-11-28
 
 The owner explicitly raised the quality bar for future implementation. Design is now a first-class acceptance criterion rather than post-functional polish, and executors are responsible for inventing a broad adversarial test matrix instead of implementing only named happy paths. PRODUCT_QUALITY.md is now the binding design/testing contract and AGENTS.md requires it to be read before work.
+
+
+## Persistent executor instructions — 2026-11-28
+
+Detailed implementation guidance that previously existed only in chat prompts has been moved into EXECUTOR_PLAYBOOK.md. Agents must read it before work; chat prompts should point to repository instructions rather than duplicate critical process requirements.
