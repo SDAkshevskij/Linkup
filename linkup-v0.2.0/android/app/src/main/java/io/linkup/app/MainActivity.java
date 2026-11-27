@@ -51,7 +51,7 @@ public class MainActivity extends Activity {
         });
 
         if (firstPage) {
-            if (state == null) receive(getIntent());
+            receive(getIntent());
             web.loadUrl(START_URL);
         }
         CollectJob.schedule(this);

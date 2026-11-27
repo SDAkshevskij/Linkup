@@ -97,8 +97,12 @@ public class MobileUiTest {
                 waitTrue(scenario, READY);
                 awaitInsets(scenario, false);
                 waitTrue(scenario, NO_OVERFLOW);
+                scrollTo(scenario, ".topbar");
                 waitTrue(scenario, insideViewport(".topbar"));
+                scrollTo(scenario, "#composer");
                 waitTrue(scenario, insideViewport("#composer"));
+                scrollTo(scenario, "#mobileSettings");
+                waitTrue(scenario, insideViewport("#mobileSettings"));
                 js(scenario, "document.querySelector('#mobileSettings').click();true");
                 waitTrue(scenario, SETTINGS + ".open && " + insideViewport("#settingsDialog"));
                 scrollTo(scenario, "#driveConnect");

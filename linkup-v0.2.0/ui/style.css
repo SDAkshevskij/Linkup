@@ -29,7 +29,9 @@
 
 @media (max-width: 680px), (max-height: 540px) and (pointer: coarse) {
     .topbar { gap: 6px; padding: 6px 10px; min-height: 56px; flex-wrap: wrap; }
-    .top-actions { min-width: 0; flex-wrap: wrap; }
+    .top-actions { min-width: 0; flex: 1; justify-content: flex-end; flex-wrap: wrap; }
+    .top-actions .status { max-width: 96px; }
+    .top-actions .status span { overflow: hidden; text-overflow: ellipsis; }
     .top-actions .iconbutton, .dialog-head .iconbutton,
     .attach, .send, .clip { width: 44px; height: 44px; }
     dialog { max-height: calc(100dvh - 16px); width: min(460px, calc(100% - 16px)); }
@@ -38,6 +40,10 @@
     .composer textarea { max-height: min(160px, max(44px, 28dvh)); }
     .staged { max-height: min(84px, 22dvh); overflow: auto; }
     .stage { max-width: 100%; min-width: 0; }
+}
+
+@media (max-width: 350px) {
+    .mobile-brand { display: none; }
 }
 
 @media (max-height: 420px) and (pointer: coarse) {

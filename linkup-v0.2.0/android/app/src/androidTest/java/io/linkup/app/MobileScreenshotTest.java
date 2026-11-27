@@ -46,6 +46,7 @@ public class MobileScreenshotTest {
         }));
         assertTrue("WebView drew the screenshot frame", drawn.await(10, TimeUnit.SECONDS));
         UiAutomation automation = InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        automation.waitForIdle(500, 5000);
         Bitmap shot = automation.takeScreenshot();
         assertNotNull("screen capture", shot);
         try {
