@@ -57,3 +57,7 @@ The owner explicitly raised the quality bar for future implementation. Design is
 ## Persistent executor instructions — 2026-11-28
 
 Detailed implementation guidance that previously existed only in chat prompts has been moved into EXECUTOR_PLAYBOOK.md. Agents must read it before work; chat prompts should point to repository instructions rather than duplicate critical process requirements.
+
+## Planning handoff — PR #4 (documentation only)
+
+The planning branch `tasks/heliboard-keyboard` records the revised P0–P3 backlog, LinkUp Security v1 and offline HeliBoard keyboard requirements. Next executor: reconcile latest main and this reviewed planning branch, then follow CODEX_PROMPT.md and the current TASKS.md. Begin with P0-B safety containment and P0-A Activity repair; P0-C owner-only signing and physical-device validation must be reported separately when blocked. S1–S5 and local keyboard are P1, Activity redesign/automatic clipboard P2. No application code, cryptography, keyboard or new test evidence was produced by this documentation change. Ask Fragments source must be provided if inaccessible; do not publish private source archives. PR #4 remains a planning change, not a production release.
