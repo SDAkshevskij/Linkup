@@ -5,7 +5,7 @@
 - [x] Correct root workflow paths for the nested project directory.
 - [x] Initialize SDK tools and explicitly select supported SDK packages.
 - [x] Confirm JS tests 7/7 and :app:assembleDebug succeeded on CI run 46024155107.
-- [ ] Fix both Android Lint errors. Latest log reports MissingPermission in Collector.java line 17 (location). Retrieve the complete lint report from Android-diagnostics; do not assume the second error or disable lint globally. Handle permission revocation safely.
+- [ ] Verify both Android Lint fixes on branch `fix/android-ci`. [Baseline CI report](https://github.com/SDAkshevskij/Linkup/actions/runs/46024155107/artifacts/15211301490) identified `MissingPermission` for cached location and `ProtectedPermissions` for the Usage Access declaration.
 - [ ] Run Android instrumentation tests on emulator API 35. Diagnose and fix failures; retain logs and screenshots where helpful.
 - [ ] Verify and link the tested APK artifact only after successful CI.
 

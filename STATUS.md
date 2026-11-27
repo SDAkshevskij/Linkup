@@ -10,9 +10,9 @@ Baseline: v0.2.0 experimental. Source resides in linkup-v0.2.0/. Latest applicat
 - Earlier local Linux agent tests reported 4/4 passed; not independently rerun during this handoff.
 
 ## Blocking issues
-- Latest CI failed at :app:lintDebug: 2 errors, 11 warnings. First reported error: MissingPermission in Collector.java:17. Full diagnostics need inspection. Emulator and tested APK upload were skipped. No downloadable tested APK verified.
+- Baseline CI failed at `:app:lintDebug` with 2 errors and 11 warnings. The [full lint report](https://github.com/SDAkshevskij/Linkup/actions/runs/46024155107/artifacts/15211301490) identified `MissingPermission` for `getLastKnownLocation` and `ProtectedPermissions` for `PACKAGE_USAGE_STATS`. The fixes on `fix/android-ci` handle location permission failures explicitly and scope the manifest exception to Usage Access, which Android grants through Settings. Emulator results and an APK artifact are pending CI on the fix branch.
 - No real-device/real-cloud integration verification yet. Transfer background sync not implemented; disk OAuth tokens currently require manual entry/renewal. No persistent APK signing key or E2EE.
 - Linux Mint package/runtime unverified; X11 supported by implementation, Wayland not implemented.
 
 ## Next action for Codex
-Pull latest main, inspect the latest CI run and lint diagnostics, fix permission-related errors without weakening permission checks, run build/lint, then emulator tests. Update this file with exact results and commit/PR links. Recheck live CI status before starting.
+Check the latest Android Actions run on `fix/android-ci` for the build, lint and API 35 instrumentation results. Inspect diagnostics for any new failure and verify that `LinkUp-Android-debug` is downloadable after a successful run.

@@ -5,7 +5,8 @@
 - Added optional native usage/activity and location collection, local storage, cloud upload and colored daily timeline with device filtering.
 - Added Yandex Disk as a storage choice; retained Google Drive.
 - Imported code into GitHub, added emulator smoke-test CI.
-- Corrected workflow directory paths and SDK package configuration. Latest CI confirms SDK setup, seven shared tests and debug APK assembly; lint errors still block emulator tests and APK artifact publication.
+- Corrected workflow directory paths and SDK package configuration. [Baseline CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46024155107) confirmed SDK setup, seven shared tests and debug APK assembly.
+- Handled Android location permission failures and checked consent again before storing a fix. Documented the scoped lint exception for the Usage Access permission declaration.
 - Added shared repository context and handoff instructions for ChatGPT and Codex.
 
 ## v0.1.0 — prototype
