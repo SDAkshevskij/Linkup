@@ -15,3 +15,9 @@ Version 0.1.0 was a web prototype. Version 0.2.0 uses installed native shells/ag
 Stable updates use GitHub Releases with a monotonic version code. Android uses the owner-controlled signing key and in-place installation. Linux Mint switches per-user program versions and retains its existing data paths. Release CI uses only synthetic test data and temporary test keys until the owner enables protected release signing.
 
 GitHub is the common source of truth for ChatGPT and Codex. The repository is intentionally public at the owner's direction; publish code and sanitized project decisions only. Do not copy private chats, personal records or credentials.
+
+## Current approved planning decisions (not yet implemented)
+
+- One mandatory end-to-end encrypted data channel for all synchronized content, including cloud-stored file bytes and sensitive metadata. Fixed libsodium v1 suite and trust model are specified in TASKS.md S1–S5. Ordinary local history may remain plaintext under OS access controls; no legacy migration. Private keys and tokens require protected storage.
+- Use actual HeliBoard sources for a separate offline Android IME without INTERNET permission. Reuse Ask Fragments local microphone path; no Codex/cloud/desktop speech. Automatic clipboard sync is dependent on verified E2EE; only deliberately copied clipboard items can be shared, never ordinary typing or voice capture.
+- TASKS.md controls priorities; CODEX_PROMPT.md is a compact launch prompt. These are planning commitments, not completed features.
