@@ -70,11 +70,12 @@ cd "$project/android"
 result=0
 gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true || result=$?
 cp -R app/build/outputs/androidTest-results/connected/debug "$diagnostics/gesture/results" || true
+screens_gesture=(portrait-settings landscape-settings portrait-keyboard landscape-keyboard activity-local activity-archive activity-calendar activity-denied)
 if [[ $result -ne 0 ]]; then
-  collect_screens gesture portrait-settings landscape-settings portrait-keyboard landscape-keyboard activity-local activity-denied || true
+  collect_screens gesture "${screens_gesture[@]}" || true
   exit "$result"
 fi
-collect_screens gesture portrait-settings landscape-settings portrait-keyboard landscape-keyboard activity-local activity-denied
+collect_screens gesture "${screens_gesture[@]}"
 set_overlay "$nav.threebutton"
 adb shell "rm -f $screens-*.png"
 gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true \

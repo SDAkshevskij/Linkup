@@ -93,30 +93,44 @@ def probe(window_dir):
             window.show()
             result={}
             timer=QTimer(window)
+            def capture_and_quit():
+                if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
+                    result['screenshot']=window.grab().save(screenshot)
+                application.quit()
+
             def measured(value):
                 if isinstance(value,dict):
                     result.update(value)
-                    if value.get('rendered'):
+                    if value.get('stage')=='complete':
                         timer.stop()
-                        if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
-                            result['screenshot']=window.grab().save(screenshot)
-                        application.quit()
+                        QTimer.singleShot(200,capture_and_quit)
             def poll():
                 window.page.runJavaScript("""(() => {
                     const ready=typeof window.linkupActivityResume==='function';
                     const view=document.querySelector('#activityView');
                     if(ready&&view.hidden)document.querySelector('[data-page=activity]').click();
                     const marks=[...document.querySelectorAll('#actTimeline .time-dot')].map(item=>item.title);
+                    const recorded=marks.some(title=>title.toLowerCase().includes('linkupfixtureone'));
+                    let stage=window.fixtureActivityStage||'initial';
+                    if(stage==='initial'&&recorded){
+                        document.querySelector('#actPrev').click();
+                        stage='archive';
+                    }else if(stage==='archive'&&document.querySelector('#actTimeline').textContent.includes('Нет записей за день')){
+                        document.querySelector('#actToday').click();
+                        stage='return';
+                    }else if(stage==='return'&&recorded&&document.querySelector('#actNext').disabled){
+                        stage='complete';
+                    }
+                    window.fixtureActivityStage=stage;
                     return {ready, qt:typeof window.qt, channel:typeof QWebChannel,
                         status:document.querySelector('#activityStatus')?.textContent,
-                        shown:view&&!view.hidden, marks,
-                        rendered:marks.some(title=>title.toLowerCase().includes('linkupfixtureone'))};
+                        shown:view&&!view.hidden, marks, stage};
                 })()""",measured)
             timer.timeout.connect(poll)
             timer.start(350)
             QTimer.singleShot(20000,application.quit)
             application.exec_()
-            assert result.get('rendered'), f'Qt timeline did not render the recorded row: {result}'
+            assert result.get('stage')=='complete', f'Qt timeline did not show the recorded row after date navigation: {result}'
             assert result.get('screenshot',True), 'screenshot could not be saved'
             sip.delete(window.view)
             window.close()

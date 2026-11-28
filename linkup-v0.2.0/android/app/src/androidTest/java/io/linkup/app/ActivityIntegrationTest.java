@@ -40,6 +40,7 @@ public class ActivityIntegrationTest {
             shell(ops+"allow");
             assertTrue(collector.status().getBoolean("usageAccess"));
             assertTrue(shell("am start -W -a android.settings.SETTINGS").contains("Status: ok"));
+            waitForForeground("com.android.settings");
             Thread.sleep(3000);
             assertTrue(shell("cmd jobscheduler run -f io.linkup.app 1001").contains("Running job"));
             long deadline=SystemClock.elapsedRealtime()+15000;
@@ -51,11 +52,25 @@ public class ActivityIntegrationTest {
             assertTrue("The deferred job recorded an actual Settings session",observed);
             assertTrue(collector.diagnostics().getLong("last_job")>=consent);
             shell("input keyevent KEYCODE_BACK");
+            waitForForeground("io.linkup.app");
             waitTrue(scenario,MobileUiTest.READY);
             js(scenario,"document.querySelector('[data-page=activity]').click();true");
-            waitTrue(scenario,"document.querySelector('#actTimeline .time-dot[title*=\"Settings\"],"
-                    + "#actTimeline .time-dot[title*=\"com.android.settings\"]')!==null");
+            String settingsMark="document.querySelector('#actTimeline .time-dot[title*=\"Settings\"],"
+                    + "#actTimeline .time-dot[title*=\"com.android.settings\"]')!==null";
+            waitTrue(scenario,settingsMark);
             MobileScreenshotTest.capture(scenario,"activity-local");
+            js(scenario,"document.querySelector('#actPrev').click();true");
+            waitTrue(scenario,"document.querySelector('#actTimeline').textContent.includes('Нет записей за день')"
+                    + " && !document.querySelector('#actToday').hidden"
+                    + " && document.querySelector('#actPrev').getBoundingClientRect().width>=44"
+                    + " && document.documentElement.scrollWidth<=innerWidth");
+            MobileScreenshotTest.capture(scenario,"activity-archive");
+            js(scenario,"document.querySelector('#actChooseDay').click();true");
+            waitTrue(scenario,"document.querySelector('#actDateDialog').open"
+                    + " && document.querySelector('#actDate').value<document.querySelector('#actDate').max");
+            MobileScreenshotTest.capture(scenario,"activity-calendar");
+            js(scenario,"document.querySelector('#actDateDialog').close();document.querySelector('#actToday').click();true");
+            waitTrue(scenario,settingsMark+" && document.querySelector('#actNext').disabled");
             js(scenario,"document.querySelector('#actDiagnostics').click();true");
             waitTrue(scenario,"document.querySelector('#activityFacts').textContent.includes('Локальные события')");
             long previous=collector.diagnostics().getLong("last_success");
@@ -83,6 +98,17 @@ public class ActivityIntegrationTest {
                     && row.getLong("end_ms")>row.getLong("start_ms"))return true;
         }
         return false;
+    }
+
+    private static void waitForForeground(String packageName) throws Exception {
+        var automation=InstrumentationRegistry.getInstrumentation().getUiAutomation();
+        long deadline=SystemClock.elapsedRealtime()+8000;
+        do {
+            var root=automation.getRootInActiveWindow();
+            if(root!=null&&root.getPackageName()!=null&&packageName.contentEquals(root.getPackageName()))return;
+            Thread.sleep(150);
+        } while(SystemClock.elapsedRealtime()<deadline);
+        fail("Foreground accessibility window was not " + packageName);
     }
 
     private static String shell(String cmd) throws Exception{
