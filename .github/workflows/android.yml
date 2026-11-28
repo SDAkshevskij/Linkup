@@ -47,6 +47,13 @@ jobs:
       - name: Shared logic tests
         working-directory: linkup-v0.2.0
         run: node --test tests/*.mjs
+      - name: Secure wire JVM framing tests
+        working-directory: linkup-v0.2.0
+        run: |
+          rm -rf "$RUNNER_TEMP/linkup-jvm"
+          mkdir -p "$RUNNER_TEMP/linkup-jvm"
+          javac --release 17 -d "$RUNNER_TEMP/linkup-jvm" android/app/src/main/java/io/linkup/app/security/SecureWire.java tests/SecureWireTest.java
+          java -cp "$RUNNER_TEMP/linkup-jvm" SecureWireTest tests/secure_wire_v1.properties
       - name: Set up Android SDK 35
         uses: android-actions/setup-android@v3
         with:
@@ -110,7 +117,10 @@ jobs:
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox wmctrl x11-utils xprintidle
+          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox wmctrl x11-utils xprintidle libsodium23
+      - name: Secure wire libsodium oracle
+        working-directory: linkup-v0.2.0
+        run: python3 tests/generate_secure_wire_vector.py --check
       - name: Linux agent and packaged upgrade tests
         working-directory: linkup-v0.2.0
         env:
