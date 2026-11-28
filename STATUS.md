@@ -1,5 +1,9 @@
 # Development status — 2026-11-28
 
+## S1 record framing draft — isolated, not integrated
+
+Added a Python and Java framing codec, SECURITY_PROTOCOL.md and shared synthetic libsodium fixture. Local isolated tests: 7 Python cases, 400 generated Python inputs, JVM literal/boundary/mutation checks and 400 generated JVM cases; system libsodium 1.0.18 KDF/AEAD/Ed25519 fixture and tamper checks passed. Full repository checkout, PyNaCl, SDK/NDK, emulator, exact-head CI and device tests were unavailable locally. No runtime call sites, no release, no changes to cloud containment. See [S1_HANDOFF.md](S1_HANDOFF.md) for precise commands, review and next actionable step; S1–S5 remain open.
+
 Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merged into main via PR #1. [Pull request #1](https://github.com/SDAkshevskij/Linkup/pull/1) · [Successful Android CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710)
 
 ## Verified baseline (v0.2.0)

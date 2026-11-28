@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased — S1 framing draft (not enabled)
+
+- Define a bounded versioned record wire format with Linux Python and Android Java codecs and a synthetic libsodium known-answer fixture. Isolated Python/JVM/native oracle tests passed; runtime encryption, device trust, replay protection, provider integration and release remain pending. [Handoff](S1_HANDOFF.md).
+
 ## Unreleased — Activity reliability and cloud containment
 
 - Repaired Android foreground bootstrap and Linux X11 diagnostics. Rendered local SQLite history independently of cloud access and moved source permissions into integrated controls.
