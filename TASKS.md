@@ -1,6 +1,6 @@
 # Active tasks
 
-Priority contract (owner): P0 = immediate blocker or urgent safety containment; P1 = next core milestone; P2 = dependent features and UX; P3 = optional expansion. Completed work is archived below, not counted as active P0. Dependencies override order within a priority. P0 fixes and local-only work can proceed independently; never enable a sensitive cloud feature before its P1 security gates are verified. No task is complete without evidence. Read AGENTS.md, EXECUTOR_PLAYBOOK.md and PRODUCT_QUALITY.md.
+Priority contract (owner): P0 = immediate blocker or urgent safety containment; P1 = next core milestone; P2 = dependent features and UX; P3 = optional expansion. Completed work is archived below, not counted as active P0. Dependencies override order within a priority. P0 fixes and local-only work can proceed independently; never enable a sensitive cloud feature before its P1 security gates are verified. No task is complete without evidence. Read AGENTS.md, EXECUTOR_PLAYBOOK.md, PRODUCT_QUALITY.md and OPEN_SOURCE_FIRST.md. The latter maps researched candidates to every current task group. Every material subtask plan must include an upstream reuse decision (including retain/build if justified).
 
 ## P0 — restore existing functionality and contain privacy risk
 

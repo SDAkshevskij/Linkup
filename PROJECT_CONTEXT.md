@@ -10,6 +10,8 @@ LinkUp is one connected personal application across Android and Linux Mint, with
 - Prefer free infrastructure during personal prototyping. Root is not required for baseline functionality.
 
 ## Development approach
+
+Open Source First is a permanent owner requirement: research upstream implementations and tests for each substantial subtask at planning time, then validate candidates before integration. See OPEN_SOURCE_FIRST.md. Preserve the native/local-first architecture, security and original product design; do not add dependencies blindly.
 Version 0.1.0 was a web prototype. Version 0.2.0 uses installed native shells/agents with a bundled local HTML/CSS/JS UI. This is not a hosted website. Flutter was proposed but not adopted due to toolchain availability. Do not migrate without evaluating preservation of functionality and discussing the decision.
 
 Stable updates use GitHub Releases with a monotonic version code. Android uses the owner-controlled signing key and in-place installation. Linux Mint switches per-user program versions and retains its existing data paths. Release CI uses only synthetic test data and temporary test keys until the owner enables protected release signing.

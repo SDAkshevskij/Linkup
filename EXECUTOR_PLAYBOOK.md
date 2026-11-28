@@ -1,6 +1,6 @@
 # LinkUp executor playbook
 
-This is persistent operational guidance for Codex and any other implementation agent. Read it together with AGENTS.md and PRODUCT_QUALITY.md before planning or coding. Do not rely on chat prompts as the source of truth.
+This is persistent operational guidance for Codex and any other implementation agent. Read it together with AGENTS.md, PRODUCT_QUALITY.md and OPEN_SOURCE_FIRST.md before planning or coding. Do not rely on chat prompts as the source of truth.
 
 ## 1. How to approach implementation
 
@@ -8,6 +8,7 @@ Do not optimize for the fastest obvious implementation. For every substantial us
 
 1. Restate the actual user problem in product terms.
 2. Inspect the existing implementation and verify the current behavior before assuming documentation is correct.
+2a. Independently search upstream implementations and tests for each substantial subtask, follow OPEN_SOURCE_FIRST.md, record a reuse decision before coding. The planner must already include researched candidates in the task plan; executor validates actual source and license.
 3. Identify the state machine, persistence, OS integrations, network dependencies, lifecycle events, concurrency and failure modes touched by the change.
 4. Derive a test matrix before coding.
 5. For user-facing work, internally develop at least two materially different interaction/composition concepts. They must differ in structure or interaction, not merely colors, spacing or rounded corners.
@@ -201,6 +202,7 @@ Before opening a PR, include in its description:
 - chosen interaction/design concept;
 - why it is better than the obvious form/dashboard solution;
 - alternatives considered internally at a high level;
+- upstream reuse decision table with exact pinned revisions, licenses and alternatives;
 - explicit test matrix;
 - automated evidence by layer;
 - CI links;

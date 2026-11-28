@@ -57,3 +57,8 @@ The owner explicitly raised the quality bar for future implementation. Design is
 ## Persistent executor instructions — 2026-11-28
 
 Detailed implementation guidance that previously existed only in chat prompts has been moved into EXECUTOR_PLAYBOOK.md. Agents must read it before work; chat prompts should point to repository instructions rather than duplicate critical process requirements.
+
+
+## Open Source First — 2026-11-28
+
+Added OPEN_SOURCE_FIRST.md as a binding planning and implementation policy, with initial public upstream research mapped to current P0, S1–S5, local keyboard, clipboard, background Transfer, Activity design, tests and optional expansion. This is candidate research only, no source imports or builds. Next P0 executor should inspect ActivityWatch collector source/tests, evaluate native Android HTTP diagnostics and local Supabase/pgTAP tests before implementing. All existing security gates and design/test requirements remain in force.
