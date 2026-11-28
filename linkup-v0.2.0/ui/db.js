@@ -15,7 +15,17 @@ export function database(){
         request.onerror=()=>reject(request.error);
     }).catch(error=>{promise=undefined;throw error;});
 }
-async function tx(stores,mode,fn){const db=await database();return new Promise((resolve,reject)=>{const t=db.transaction(stores,mode);let value;try{value=fn(t);}catch(e){t.abort();reject(e);return}t.oncomplete=()=>resolve(value?.result);t.onerror=()=>reject(t.error);t.onabort=()=>reject(t.error||Error('Хранилище недоступно'));});}
+async function tx(stores,mode,fn){
+    const db=await database();
+    return new Promise((resolve,reject)=>{
+        const transaction=db.transaction(stores,mode);
+        let request,error;
+        transaction.oncomplete=()=>resolve(request?.result);
+        transaction.onerror=event=>{error??=event.target.error;};
+        transaction.onabort=()=>reject(transaction.error||error||Error('Хранилище недоступно'));
+        try{request=fn(transaction);}catch(failure){error=failure;transaction.abort();}
+    });
+}
 export const all=store=>tx([store],'readonly',t=>t.objectStore(store).getAll());
 export const get=(store,key)=>tx([store],'readonly',t=>t.objectStore(store).get(key));
 export const put=(store,value)=>tx([store],'readwrite',t=>t.objectStore(store).put(value));

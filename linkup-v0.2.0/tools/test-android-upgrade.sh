@@ -88,7 +88,9 @@ adb uninstall io.linkup.app >/dev/null 2>&1 || true
 adb install "$work/old.apk"
 adb install -t "$work/old-tests.apk"
 instrument() {
-  adb shell am instrument -w -e class io.linkup.app.UpgradeTest -e upgradePhase "$1" -e expectedVersion "$2" \
+  local method=retainsAppDataAcrossSignedUpgrade
+  if [[ $1 == validate ]]; then method=builtInUpdaterAcceptsOnlyTheMatchingSignedCandidate; fi
+  adb shell am instrument -w -e class "io.linkup.app.UpgradeTest#$method" -e upgradePhase "$1" -e expectedVersion "$2" \
     io.linkup.app.test/androidx.test.runner.AndroidJUnitRunner | tee "$work/$1.log"
   tr -d '\r' < "$work/$1.log" | grep -Fx 'OK (1 test)'
 }
