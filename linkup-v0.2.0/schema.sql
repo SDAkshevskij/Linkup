@@ -49,7 +49,7 @@ drop policy if exists linkup_drive_read on public.linkup_drive_accounts;
 create policy linkup_drive_read on public.linkup_drive_accounts for select to authenticated using(auth.uid()=user_id);
 drop policy if exists linkup_drive_insert on public.linkup_drive_accounts;
 create policy linkup_drive_insert on public.linkup_drive_accounts for insert to authenticated with check(auth.uid()=user_id);
--- v0.2: native activity events, immutable / idempotent uploads.
+-- Preserve existing Activity rows and prevent new plaintext uploads until E2EE.
 create table if not exists public.linkup_activity (
  id uuid primary key, user_id uuid not null references auth.users(id) on delete cascade,
  device_id uuid not null, device_name text not null, platform text not null,
@@ -60,12 +60,11 @@ create table if not exists public.linkup_activity (
 );
 create index if not exists linkup_activity_owner_time on public.linkup_activity(user_id,start_ms,end_ms);
 alter table public.linkup_activity enable row level security;
-revoke all on public.linkup_activity from anon,authenticated;
-grant select,insert,delete on public.linkup_activity to authenticated;
+revoke all on public.linkup_activity from public,anon,authenticated;
+grant select,delete on public.linkup_activity to authenticated;
 drop policy if exists activity_select on public.linkup_activity;
 create policy activity_select on public.linkup_activity for select to authenticated using(auth.uid()=user_id);
 drop policy if exists activity_insert on public.linkup_activity;
-create policy activity_insert on public.linkup_activity for insert to authenticated with check(auth.uid()=user_id);
 drop policy if exists activity_delete on public.linkup_activity;
 create policy activity_delete on public.linkup_activity for delete to authenticated using(auth.uid()=user_id);
 create table if not exists public.linkup_disk_accounts(user_id uuid not null references auth.users(id) on delete cascade,provider text not null check(provider in ('google','yandex')),drive_identity text not null,primary key(user_id,provider));

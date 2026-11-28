@@ -11,6 +11,7 @@ on:
       - 'linkup-v0.2.0/version.properties'
       - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
+      - 'linkup-v0.2.0/schema.sql'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
@@ -21,6 +22,7 @@ on:
       - 'linkup-v0.2.0/version.properties'
       - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
+      - 'linkup-v0.2.0/schema.sql'
       - '.github/workflows/android.yml'
 permissions:
   contents: read
@@ -95,6 +97,10 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: PostgreSQL Activity upload policy test
+        run: |
+          sudo systemctl start postgresql.service
+          sudo -u postgres psql -X -d postgres -f "$GITHUB_WORKSPACE/linkup-v0.2.0/tests/test_activity_policy.sql"
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
