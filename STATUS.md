@@ -67,3 +67,8 @@ Detailed implementation guidance that previously existed only in chat prompts ha
 ## Open Source First — 2026-11-28
 
 Added OPEN_SOURCE_FIRST.md as a binding planning and implementation policy, with initial public upstream research mapped to current P0, S1–S5, local keyboard, clipboard, background Transfer, Activity design, tests and optional expansion. This is candidate research only, no source imports or builds. Next P0 executor should inspect ActivityWatch collector source/tests, evaluate native Android HTTP diagnostics and local Supabase/pgTAP tests before implementing. All existing security gates and design/test requirements remain in force.
+
+
+## Repo-local Agent Skills — 2026-11-28
+
+Eight selected skills installed under .agents/skills, pinned to upstream revisions with license/provenance. SKILLS_POLICY.md defines mandatory task routing, evidence and safety constraints; AGENTS.md and EXECUTOR_PLAYBOOK.md require it. Impeccable is a text-only local adaptation (no downloaded engine or hooks). No app dependencies, code, release, or CI changes. Actual skill discovery/invocation in Codex needs a fresh session from the updated checkout.

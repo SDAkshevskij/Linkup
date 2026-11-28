@@ -2,6 +2,10 @@
 
 This is persistent operational guidance for Codex and any other implementation agent. Read it together with AGENTS.md, PRODUCT_QUALITY.md and OPEN_SOURCE_FIRST.md before planning or coding. Do not rely on chat prompts as the source of truth.
 
+## Required skill routing
+
+Read SKILLS_POLICY.md and invoke/read the applicable installed skills at each phase. Record skill-derived changes and evidence in the plan and PR. Do not install or execute upstream scripts automatically. The policy supplies safe alternatives for unavailable plugin integrations.
+
 ## 1. How to approach implementation
 
 Do not optimize for the fastest obvious implementation. For every substantial user-facing task:
