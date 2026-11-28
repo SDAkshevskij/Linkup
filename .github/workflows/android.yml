@@ -98,11 +98,12 @@ jobs:
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri
+          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox xterm wmctrl x11-utils xprintidle
       - name: Linux agent and packaged upgrade tests
         working-directory: linkup-v0.2.0
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
           LINKUP_TEST_WEBENGINE: '1'
+          LINKUP_TEST_X11: '1'
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v

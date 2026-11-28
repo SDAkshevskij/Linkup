@@ -16,7 +16,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
    f=QFile(':/qtwebchannel/qwebchannel.js');f.open(QIODevice.ReadOnly);d=bytes(f.readAll());self.send_response(200);self.send_header('Content-Type','application/javascript');self.send_header('Content-Length',str(len(d)));self.end_headers();self.wfile.write(d);return
   super().do_GET()
  def end_headers(self):
-  self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src https: wss: 'self'; object-src 'none'; frame-src 'none'; base-uri 'none'")
+  self.send_header('Content-Security-Policy',"default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' blob: data:; connect-src https: wss:; object-src 'none'; frame-src 'none'; base-uri 'none'")
   super().end_headers()
 class Bridge(QObject):
  @pyqtSlot(str,str,result=str)
@@ -24,6 +24,7 @@ class Bridge(QObject):
   try:
    a=json.loads(raw);v=None
    if action=='checkUpdate':QTimer.singleShot(0,self.parent().updates.check)
+   elif action=='activityDiagnostics':v=agent.diagnostics()
    elif action=='status':v=agent.status()
    elif action=='activity':v={'rows':agent.rows(a['from'],a['to']),'status':agent.status()}
    elif action=='configure':agent.configure(a)
@@ -66,8 +67,16 @@ if __name__=='__main__':
  try:srv=http.server.ThreadingHTTPServer(('127.0.0.1',PORT),functools.partial(Handler,directory=str(UI)))
  except OSError:QMessageBox.critical(None,'LinkUp','LinkUp уже запущен или порт 18763 занят.');sys.exit(1)
  threading.Thread(target=srv.serve_forever,daemon=True).start()
- subprocess.Popen([sys.executable,str(pathlib.Path(__file__).with_name('agent.py'))],start_new_session=True,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+ agent.pause_legacy_cloud()
  w=Window()
+ supervisor=agent.Supervisor()
+ def ensure_agent():
+  try:supervisor.ensure()
+  except OSError:pass
+ ensure_agent()
+ watch=QTimer(w)
+ watch.timeout.connect(ensure_agent)
+ watch.start(5000)
  w.show()
  if marker := os.environ.pop('LINKUP_STARTUP_MARKER', ''):
   QTimer.singleShot(0, lambda: w.report_ready(marker))
