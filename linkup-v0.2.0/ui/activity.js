@@ -2,7 +2,7 @@ const $=id=>document.getElementById(id);
 let bridgeReady;export function native(action,args={}){return new Promise((resolve,reject)=>{const done=v=>{try{const r=JSON.parse(v);if(r.error)reject(Error(r.error));else resolve(r.value);}catch(e){reject(e)}};if(window.LinkUpNative){try{done(LinkUpNative.call(action,JSON.stringify(args)))}catch(e){reject(e)}return;}if(window.qt&&window.QWebChannel){bridgeReady??=new Promise(r=>new QWebChannel(qt.webChannelTransport,c=>r(c.objects.native)));bridgeReady.then(b=>b.call(action,JSON.stringify(args),done),reject);return;}reject(Error('Нативный агент недоступен'));});}
 const colors=['#35b9e8','#94d82d','#ff862d','#ad92f5','#f4779c','#4ed3af','#e3c765','#7b9cff'];
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const duration=ms=>{const m=Math.round(ms/60000);return m<60?`${m} мин`:`${Math.floor(m/60)} ч ${String(m%60).padStart(2,'0')} мин`;};
+const duration=ms=>{if(ms>0&&ms<60000)return `${Math.max(1,Math.round(ms/1000))} с`;const m=Math.round(ms/60000);return m<60?`${m} мин`:`${Math.floor(m/60)} ч ${String(m%60).padStart(2,'0')} мин`;};
 const time=ms=>new Date(ms).toLocaleTimeString('ru-RU',{hour:'2-digit',minute:'2-digit'});
 const dateKey=d=>`${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
 let day=dateKey(new Date()),device='all',data=[],status={},configGetter=()=>({}),tick=0;

@@ -5,6 +5,7 @@ async function checked(response){
 }
 
 export function assertPublicKey(key){
+ key=key.trim();
  if(/^sb_secret_/i.test(key))throw new Error('Используйте только publishable или anon ключ Supabase');
  const parts=key.split('.');
  if(parts.length===3){

@@ -55,9 +55,9 @@ public class ActivityIntegrationTest {
             js(scenario,"document.querySelector('[data-page=activity]').click();true");
             waitTrue(scenario,"document.querySelector('#actTimeline .time-dot[title*=\"Settings\"],"
                     + "#actTimeline .time-dot[title*=\"com.android.settings\"]')!==null");
+            MobileScreenshotTest.capture(scenario,"activity-local");
             js(scenario,"document.querySelector('#actDiagnostics').click();true");
             waitTrue(scenario,"document.querySelector('#activityFacts').textContent.includes('Локальные события')");
-            MobileScreenshotTest.capture(scenario,"activity-local");
             long previous=collector.diagnostics().getLong("last_success");
             shell(ops+"deny");
             collector.collect();

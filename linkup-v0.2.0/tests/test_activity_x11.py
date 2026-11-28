@@ -81,22 +81,32 @@ def probe():
             window=native.Window()
             window.show()
             result={}
+            timer=QTimer(window)
+            def measured(value):
+                if isinstance(value,dict):
+                    result.update(value)
+                    if value.get('rendered'):
+                        timer.stop()
+                        if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
+                            result['screenshot']=window.grab().save(screenshot)
+                        application.quit()
             def poll():
                 window.page.runJavaScript("""(() => {
-                    if (typeof window.linkupImportShare !== 'function') return false;
-                    if (document.querySelector('#activityView').hidden)
-                        document.querySelector('[data-page=activity]').click();
-                    return [...document.querySelectorAll('#actTimeline .time-dot')]
-                        .some(item => item.title.toLowerCase().includes('linkupfixtureone'));
-                })()""",lambda value:result.update(rendered=value))
-            timer=QTimer(window)
+                    const ready=typeof window.linkupActivityResume==='function';
+                    const view=document.querySelector('#activityView');
+                    if(ready&&view.hidden)document.querySelector('[data-page=activity]').click();
+                    const marks=[...document.querySelectorAll('#actTimeline .time-dot')].map(item=>item.title);
+                    return {ready, qt:typeof window.qt, channel:typeof QWebChannel,
+                        status:document.querySelector('#activityStatus')?.textContent,
+                        shown:view&&!view.hidden, marks,
+                        rendered:marks.some(title=>title.toLowerCase().includes('linkupfixtureone'))};
+                })()""",measured)
             timer.timeout.connect(poll)
-            timer.start(300)
-            wait_for(lambda:result.get('rendered'),pump=application.processEvents)
-            timer.stop()
-            if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
-                application.processEvents()
-                assert window.grab().save(screenshot)
+            timer.start(350)
+            QTimer.singleShot(20000,application.quit)
+            application.exec_()
+            assert result.get('rendered'), f'Qt timeline did not render the recorded row: {result}'
+            assert result.get('screenshot',True), 'screenshot could not be saved'
             sip.delete(window.view)
             window.close()
             window=None

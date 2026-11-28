@@ -83,3 +83,7 @@
 .source-facts { margin:0 0 12px; display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); font-size:12px; }
 .source-facts dt,.source-facts dd { margin:0; padding:8px 0; border-bottom:1px solid var(--line); overflow-wrap:anywhere; }
 .source-facts dt { color:var(--muted); }
+
+.act-controls #actDevice { min-width:94px; max-width:100%; }
+.act-controls #actDate { min-width:108px; }
+.act-track .time-dot { min-width:3px; }
