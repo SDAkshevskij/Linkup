@@ -19,7 +19,7 @@ final class Collector extends SQLiteOpenHelper {
   JSONObject result=status();
   for(String key:new String[]{"cursor","last_attempt","last_success","last_boundary","last_job"})
    result.put(key,p.getLong(key,0));
-  result.put("last_app",p.getString("app",""));
+  result.put("last_app",p.getString("last_app",""));
   result.put("job_scheduled",c.getSystemService(android.app.job.JobScheduler.class)
       .getPendingJob(CollectJob.ID)!=null);
   result.put("job_error",p.getString("job_error",""));
@@ -59,21 +59,21 @@ final class Collector extends SQLiteOpenHelper {
  private static final long LOOKBACK=TimeUnit.MINUTES.toMillis(30);
  private static final long DELIVERY_DELAY=1500;
  private static final class UsageState {
-  String app="";
+  String app="",activity="";
   boolean screen;
   boolean transition(UsageEvents.Event event){
-   String pkg=event.getPackageName();
+   String pkg=event.getPackageName(), name=event.getClassName();
    switch(event.getEventType()){
-    case UsageEvents.Event.ACTIVITY_RESUMED: app=pkg==null?"":pkg; screen=true; return true;
+    case UsageEvents.Event.ACTIVITY_RESUMED: app=pkg==null?"":pkg; activity=name==null?"":name; screen=true; return true;
     case UsageEvents.Event.ACTIVITY_PAUSED:
     case UsageEvents.Event.ACTIVITY_STOPPED:
-     if(!app.isEmpty()&&app.equals(pkg)){app="";return true;}
+     if(!app.isEmpty()&&app.equals(pkg)&&(name==null||activity.isEmpty()||activity.equals(name))){app="";activity="";return true;}
      return false;
     case UsageEvents.Event.SCREEN_NON_INTERACTIVE:
     case UsageEvents.Event.KEYGUARD_SHOWN:
     case UsageEvents.Event.DEVICE_SHUTDOWN:
     case UsageEvents.Event.DEVICE_STARTUP:
-     screen=false;app="";return true;
+     screen=false;app="";activity="";return true;
     case UsageEvents.Event.SCREEN_INTERACTIVE:
     case UsageEvents.Event.KEYGUARD_HIDDEN:
      screen=true;return true;
@@ -83,7 +83,7 @@ final class Collector extends SQLiteOpenHelper {
  }
  void collect() throws Exception {
   synchronized(LOCK){
-   if(p.getBoolean("cloud",false)||p.contains("session"))disableCloud();
+   if(p.getBoolean("cloud",false)||p.contains("session")||p.contains("url")||p.contains("key"))disableCloud();
    if(!p.getBoolean("enabled",false))return;
    long now=System.currentTimeMillis();
    p.edit().putLong("last_attempt",now).apply();
@@ -113,10 +113,12 @@ final class Collector extends SQLiteOpenHelper {
    }else{
     state.app=p.getString("app","");
     state.screen=p.getBoolean("screen",false);
+    state.activity=p.getString("activity_class","");
    }
 
    SQLiteDatabase db=getWritableDatabase();
    long start=cursor, boundary=p.getLong("last_boundary",0);
+   String lastApp=state.app.isEmpty()?p.getString("last_app",""):state.app;
    db.beginTransaction();
    try{
     while(events.hasNextEvent()&&events.getNextEvent(event)){
@@ -125,6 +127,7 @@ final class Collector extends SQLiteOpenHelper {
      String previous=state.app;
      boolean visible=state.screen;
      if(!state.transition(event))continue;
+     if(!state.app.isEmpty())lastApp=state.app;
      if(visible&&!previous.isEmpty())emit(db,"app",start,t,previous,null);
      start=t;
      boundary=t;
@@ -136,6 +139,7 @@ final class Collector extends SQLiteOpenHelper {
     db.setTransactionSuccessful();
    }finally{db.endTransaction();}
    p.edit().putLong("cursor",end).putString("app",state.app).putBoolean("screen",state.screen)
+       .putString("activity_class",state.activity).putString("last_app",lastApp)
        .putBoolean("bootstrap",false).putLong("last_boundary",boundary)
        .putLong("last_success",now).remove("collect_error").commit();
   }

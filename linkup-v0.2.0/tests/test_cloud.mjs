@@ -19,3 +19,44 @@ test('Supabase: paginated history and realtime notification',async()=>{
  const original=globalThis.WebSocket;class FakeSocket {constructor(url){this.url=url;this.readyState=1;this.sent=[];}send(data){this.sent.push(JSON.parse(data));}close(){this.readyState=3;this.onclose?.();}}globalThis.WebSocket=FakeSocket;let changes=0,connected=false;
  try{await s.subscribe(()=>changes++,v=>connected=v);const ws=s.ws;ws.onopen();assert.match(ws.url.href,/realtime\/v1\/websocket/);const join=ws.sent[0];assert.equal(join.event,'phx_join');assert.equal(join.payload.config.postgres_changes[0].filter,`user_id=eq.${user.id}`);ws.onmessage({data:JSON.stringify({event:'phx_reply',ref:join.ref,payload:{status:'ok'}})});assert.equal(connected,true);ws.onmessage({data:JSON.stringify({event:'postgres_changes'})});assert.equal(changes,2);}finally{s.close();globalThis.WebSocket=original;}
 });
+
+test('insecure endpoints and privileged keys are rejected before any request', async t => {
+    const calls=t.mock.method(globalThis,'fetch',async()=>{throw new Error('unexpected network');});
+    assert.throws(()=>new Supabase('http://example.test','public',null,()=>{}),/HTTPS/);
+    assert.throws(()=>new Supabase('https://example.test','sb_secret_fixture',null,()=>{}),/publishable/);
+    const claims=Buffer.from(JSON.stringify({role:'service_role'})).toString('base64url');
+    assert.throws(()=>new Supabase('https://example.test','header.'+claims+'.signature',null,()=>{}),/publishable/);
+    assert.equal(calls.mock.callCount(),0);
+});
+
+test('account revocation aborts requests and rejects data before another network call', async t => {
+    let signal;
+    const calls=t.mock.method(globalThis,'fetch',(_url,options)=>{
+        signal=options.signal;
+        assert.equal(options.redirect,'error');
+        return new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new Error('aborted')),{once:true}));
+    });
+    const client=new Supabase('https://example.test','public',
+        {user,access_token:'synthetic',expires_at:Date.now()/1000+900},()=>{});
+    const pending=client.list();
+    await Promise.resolve();
+    client.disconnect();
+    await assert.rejects(pending);
+    await assert.rejects(client.insert({text_content:'canary'}),/закрыто/);
+    assert.equal(signal.aborted,true);
+    assert.equal(calls.mock.callCount(),1);
+});
+
+test('Google Drive never forwards the bearer token to a supplied foreign upload host', async t => {
+    const visited=[];
+    t.mock.method(globalThis,'fetch',async(url)=>{
+        visited.push(url);
+        if(url.includes('spaces='))return json({files:[]});
+        return json({},200,{Location:'https://example.test/upload'});
+    });
+    const drive=new Drive('fixture');
+    await drive.connect('synthetic');
+    await assert.rejects(drive.upload(new Blob(['canary']),{id:'fixture',file_name:'fixture'},()=>{}),/доверенный/);
+    assert.equal(visited.length,2);
+    assert.ok(visited.every(url=>new URL(url).hostname==='www.googleapis.com'));
+});

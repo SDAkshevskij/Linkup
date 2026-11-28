@@ -15,6 +15,7 @@ export async function cloudStep(service, operation, timeout = 12000) {
         ]);
     } catch (error) {
         let detail = error.message;
+        if (error instanceof SyntaxError) detail = 'Сервер вернул неожиданный ответ';
         if (error instanceof TypeError) detail = 'Сеть или сервер недоступны. Проверьте адрес и подключение';
         if (error instanceof CloudError) {
             const hints = {

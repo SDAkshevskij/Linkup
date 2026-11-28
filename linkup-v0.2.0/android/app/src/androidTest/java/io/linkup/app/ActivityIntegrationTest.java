@@ -1,5 +1,6 @@
 package io.linkup.app;
 
+import android.net.ConnectivityManager;
 import android.os.ParcelFileDescriptor;
 import android.os.SystemClock;
 import androidx.test.core.app.ActivityScenario;
@@ -21,9 +22,15 @@ public class ActivityIntegrationTest {
         Assume.assumeTrue(Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("requireCutout")));
         var context=InstrumentationRegistry.getInstrumentation().getTargetContext();
         String ops="appops set io.linkup.app GET_USAGE_STATS ";
+        String airplane=shell("settings get global airplane_mode_on").trim();
+        shell("cmd connectivity airplane-mode enable");
         shell(ops+"deny");
         try(Collector collector=new Collector(context);
             ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            var network=context.getSystemService(ConnectivityManager.class);
+            long offlineBy=SystemClock.elapsedRealtime()+8000;
+            while(network.getActiveNetwork()!=null&&SystemClock.elapsedRealtime()<offlineBy)Thread.sleep(150);
+            assertNull("The collector test is actually offline",network.getActiveNetwork());
             collector.erase();
             long consent=System.currentTimeMillis();
             collector.configure(new JSONObject().put("enabled",true).put("device_name","Emulator fixture"));
@@ -62,6 +69,7 @@ public class ActivityIntegrationTest {
             MobileScreenshotTest.capture(scenario,"activity-denied");
         }finally{
             shell(ops+"default");
+            if(!"1".equals(airplane))shell("cmd connectivity airplane-mode disable");
             try(Collector collector=new Collector(context)){collector.erase();}
         }
     }

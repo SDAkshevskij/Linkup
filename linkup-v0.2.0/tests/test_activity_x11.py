@@ -31,7 +31,11 @@ def probe():
         deadline=time.monotonic()+seconds
         while time.monotonic()<deadline:
             pump()
-            if value:=test():return value
+            try:
+                if value:=test():return value
+            except subprocess.CalledProcessError:
+                # The WM creates its client list after advertising EWMH support.
+                pass
             time.sleep(.1)
         raise AssertionError(f'integration wait timed out: {agent.diagnostics()}')
 
