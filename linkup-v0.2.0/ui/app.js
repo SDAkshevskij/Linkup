@@ -77,7 +77,10 @@ async function sync(force=false){
                     await client.tombstone(item.id);
                     if(!alive())return;
                     if(item.kind==='file'&&!item.everSynced){
-                        if(!diskAlive())continue;
+                        if(!diskAlive()){
+                            if(alive())fileError||='Файлы ждут подключения диска';
+                            continue;
+                        }
                         const orphan=item.drive_id||await disk.find(item.id);
                         if(!diskAlive())continue;
                         if(orphan)await disk.remove(orphan);
@@ -86,7 +89,10 @@ async function sync(force=false){
                     continue;
                 }
                 if(item.kind==='file'&&!item.drive_id){
-                    if(!diskAlive())continue;
+                    if(!diskAlive()){
+                        if(alive())fileError||='Файлы ждут подключения диска';
+                        continue;
+                    }
                     const stored=await get('blobs',item.key);
                     if(!diskAlive())continue;
                     if(!stored)throw Error('Локальный файл не найден');
@@ -326,7 +332,10 @@ $('probeSupabase').onclick=async()=>{
         const elapsed=Number.isFinite(result.elapsed_ms)?` (${Math.round(result.elapsed_ms/100)/10} с)`:'';
         output.textContent=[cloudDiagnostic,network+elapsed].filter(Boolean).join(' · ');
     }catch(error){output.textContent=['Введите адрес проекта','Предыдущая проверка ещё выполняется'].includes(error.message)?error.message:'Адрес или сеть недоступны';}
-    finally{button.disabled=false;}
+    finally{
+        button.disabled=false;
+        if($('settingsDialog').open)output.scrollIntoView({block:'nearest'});
+    }
 };
 $('legacyTransfer').onclick=()=>{
     if(legacyEnabled()){

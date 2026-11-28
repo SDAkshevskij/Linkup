@@ -99,7 +99,8 @@ public class CloudContainmentTest {
                     + "document.querySelector('#cloudInspector').open=true;"
                     + "document.querySelector('#probeSupabase').click();true");
             waitTrue(scenario,"(()=>{const d=document.querySelector('#cloudProbeStatus');"
-                    + "return d.textContent.includes('DNS') && !d.textContent.includes('.invalid')})()");
+                    + "return d.textContent.includes('DNS') && !d.textContent.includes('.invalid')"
+                    + " && d.getBoundingClientRect().bottom<=innerHeight})()");
             MobileScreenshotTest.capture(scenario,"settings-dns-error");
         }
     }

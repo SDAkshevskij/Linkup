@@ -133,7 +133,14 @@
 .settings-account-state { display:flex; align-items:center; justify-content:space-between; gap:10px; }
 .settings-account-state #logout { color:var(--muted); flex:none; padding-inline:8px; min-height:44px; }
 .settings-release { border-top:1px solid var(--line); padding-top:12px; }
-@media (min-width: 681px) and (pointer: fine) {
+@media (min-width: 681px) and (min-height: 420px) {
     .settings-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
     .settings-pair input { min-width:0; width:100%; }
+}
+@media (orientation: landscape) and (max-height: 540px) and (pointer: coarse) {
+    .act-controls { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); margin:8px 0; }
+    .activity-health { margin:6px 0; padding:4px 0; }
+    .act-total { display:flex; gap:12px; align-items:baseline; margin:8px 0 2px; }
+    .act-total strong { font-size:30px; }
+    .act-track { height:32px; }
 }

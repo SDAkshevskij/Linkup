@@ -67,7 +67,8 @@ public class ActivityIntegrationTest {
             waitTrue(scenario,settingsMark);
             MobileScreenshotTest.capture(scenario,"activity-local");
             MobileUiTest.orient(scenario,true);
-            waitTrue(scenario,settingsMark+" && document.documentElement.scrollWidth<=innerWidth");
+            waitTrue(scenario,settingsMark+" && document.documentElement.scrollWidth<=innerWidth"
+                    + " && document.querySelector('#actTimeline').getBoundingClientRect().top<innerHeight");
             MobileScreenshotTest.capture(scenario,"activity-landscape");
             MobileUiTest.orient(scenario,false);
             js(scenario,"document.querySelector('#actPrev').click();true");
