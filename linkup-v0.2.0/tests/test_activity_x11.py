@@ -18,7 +18,7 @@ class ActivityX11Test(unittest.TestCase):
             subprocess.run([sys.executable,__file__,'probe'],env=env,check=True,timeout=80)
 
 
-def probe():
+def probe(window_dir):
     import functools
     import threading
     sys.path.insert(0,str(ROOT/'linux'))
@@ -27,17 +27,16 @@ def probe():
     import app as native
     agent=native.agent
 
-    def wait_for(test,seconds=20,pump=lambda:None):
+    def wait_for(test,description,seconds=20):
         deadline=time.monotonic()+seconds
         while time.monotonic()<deadline:
-            pump()
             try:
                 if value:=test():return value
             except subprocess.CalledProcessError:
                 # The WM creates its client list after advertising EWMH support.
                 pass
             time.sleep(.1)
-        raise AssertionError(f'integration wait timed out: {agent.diagnostics()}')
+        raise AssertionError(f'Timed out waiting for {description}: {agent.diagnostics()}')
 
     processes=[]
     supervisor=agent.Supervisor()
@@ -50,27 +49,39 @@ def probe():
     window=None
     try:
         spawn('openbox')
-        wait_for(lambda:'Openbox' in agent.cmd('wmctrl','-m'))
-        spawn(sys.executable,__file__,'window','LinkUpFixtureOne','LinkUp Fixture One')
-        spawn(sys.executable,__file__,'window','LinkUpFixtureTwo','LinkUp Fixture Two')
-        wait_for(lambda:'LinkUp Fixture One' in agent.cmd('wmctrl','-l') and
-                         'LinkUp Fixture Two' in agent.cmd('wmctrl','-l'))
+        wait_for(lambda:'Openbox' in agent.cmd('wmctrl','-m'),'Openbox')
+
+        def open_client(name):
+            marker=window_dir/name
+            child=spawn(sys.executable,__file__,'window',name,str(marker))
+            def managed_window():
+                if child.poll() is not None:
+                    raise AssertionError(f'{name} exited with {child.returncode}')
+                if not marker.exists() or not (identifier:=marker.read_text()):
+                    return None
+                registered=agent.cmd('xprop','-root','_NET_CLIENT_LIST').split('#')[-1]
+                return identifier if int(identifier,16) in {
+                    int(token,16) for token in registered.replace(',',' ').split()
+                    if token.startswith('0x')} else None
+            return wait_for(managed_window,f'an exposed and managed window for {name}')
+
+        one=open_client('LinkUpFixtureOne')
+        two=open_client('LinkUpFixtureTwo')
         agent.configure({'enabled':True,'device_name':'Fixture X11'})
         supervisor.ensure()
-        def activate(title):
-            subprocess.run(['wmctrl','-a',title],check=True)
-        activate('LinkUp Fixture One')
-        wait_for(lambda:agent.diagnostics().get('last_app','').lower()=='linkupfixtureone')
-        activate('LinkUp Fixture Two')
+        subprocess.run(['wmctrl','-ia',one],check=True)
+        wait_for(lambda:agent.diagnostics().get('last_app','').lower()=='linkupfixtureone','collection of the first window')
+        subprocess.run(['wmctrl','-ia',two],check=True)
         def first_row():
             return next((r for r in agent.rows(0,int(time.time()*1000)+1)
                          if r['app']=='linkupfixtureone' and r['end_ms']>r['start_ms']),None)
-        wait_for(first_row)
+        wait_for(first_row,'the first window session in SQLite')
         old_pid=agent.diagnostics()['pid']
         supervisor.child.terminate()
         supervisor.child.wait(timeout=5)
         supervisor.ensure()
-        wait_for(lambda:agent.diagnostics().get('pid')!=old_pid and agent.diagnostics().get('last_app','').lower()=='linkupfixturetwo')
+        wait_for(lambda:agent.diagnostics().get('pid')!=old_pid and agent.diagnostics().get('last_app','').lower()=='linkupfixturetwo',
+                 'a restarted collector observing the second window')
         assert first_row(), 'history survives collector restart'
 
         with native.http.server.ThreadingHTTPServer(('127.0.0.1',0),
@@ -125,14 +136,19 @@ def probe():
 
 if __name__=='__main__':
     if sys.argv[1:]==['probe']:
-        probe()
+        with tempfile.TemporaryDirectory() as window_dir:
+            probe(Path(window_dir))
     elif sys.argv[1:2]==['window']:
+        from PyQt5.QtTest import QTest
         from PyQt5.QtWidgets import QApplication, QWidget
-        name,title=sys.argv[2:4]
+        name,marker=sys.argv[2:4]
         application=QApplication([name,'-name',name])
         application.setApplicationName(name)
         client=QWidget()
-        client.setWindowTitle(title)
+        client.setWindowTitle(name)
         client.resize(240,140)
         client.show()
+        if not QTest.qWaitForWindowExposed(client,5000):
+            sys.exit('X11 fixture window was not exposed')
+        Path(marker).write_text(hex(int(client.winId())))
         sys.exit(application.exec_())
