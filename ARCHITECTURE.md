@@ -10,8 +10,10 @@
 - `.github/workflows/release.yml`: main-only release pipeline. Keeps release credentials in the protected environment and publishes the signed APK, the Linux installer and SHA-256 checksums after CI.
 - `linkup-v0.2.0/version.properties`: shared release name and numeric version code.
 
-## Data flow
+## Data flow on the published baseline
 Local-first: native SQLite activity storage and IndexedDB transfer storage; Supabase for authorized structured records and sync, Yandex Disk or Google Drive for binary attachments. Transfer uses foreground Realtime/polling and queued changes; activity background uploads are opt-in with a separate auth session. No continuous guarantee on Android scheduling. Location is periodic and optional, not a continuous route. Android system usage access and location permissions must be granted by the owner.
+
+TASKS.md defines the active P0 changes. The published Activity collector and cloud routes are under repair and containment. Baseline smoke and upgrade evidence does not establish real event collection or physical cloud reachability.
 
 ## Android window and UI lifecycle
 

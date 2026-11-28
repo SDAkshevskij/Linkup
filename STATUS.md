@@ -9,7 +9,7 @@ Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merge
 - Downloaded `LinkUp-Android-debug` with `gh run download 46025692710 -R SDAkshevskij/Linkup -n LinkUp-Android-debug`. `apksigner verify --verbose app-debug.apk` validated the v2 signature. APK SHA-256 is `8987b31b5aa06eef1fc6fc87d0125af147f0a9fdddbd4c932fbb5a52f181109f`. [Tested APK](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710/artifacts/15211278532)
 - `python3 -m unittest discover -s tests -p 'test_agent.py'` ran locally from `linkup-v0.2.0/` and passed all 4 Linux-agent unit tests.
 
-## P0 release work
+## Released baseline and signing
 
 [PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) merged into main at `be9590f`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
 
@@ -19,11 +19,11 @@ Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merge
 - `LINKUP_TEST_WEBENGINE=1 LIBGL_ALWAYS_SOFTWARE=1 QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v` passed all 8 Linux tests on CI. Two packaged versions retained the Qt WebEngine IndexedDB item and blob, browser settings and session, native SQLite history and native session. The rollback test confirmed that failure to launch retains the old version. [Linux CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
 - Android CI corrections included building instrumentation against each target, writing fixtures directly to IndexedDB and allowing Chromium to commit LocalStorage before stopping the baseline process. Linux CI uses Xvfb for a working Qt graphics context. [Instrumentation diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46033722811) · [WebView diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46035385606)
 - The owner reported a physical Android connection problem in 0.2.0. Device-specific cause and behavior with a real cloud account still need confirmation. The regression scenarios use synthetic data.
-- Production key setup and publication are pending the owner. GitHub reports no deployment environments configured. The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
+- GitHub has the `linkup-release` environment and v0.2.1 is published. Future releases require the applicable gates and owner authorization. [Published release](https://github.com/SDAkshevskij/Linkup/releases/tag/v0.2.1) The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
 
-## P0 Android mobile UI
+## Merged Android mobile UI
 
-Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3)
+The mobile changes merged into main at `853d475`. [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3)
 
 - Apply system bar, cutout, and IME insets once at the native view container. Fit the compact composer and settings scroll container to this viewport.
 - Handle rotation with the active WebView. Reattach that WebView on in-process Activity recreation to preserve dialogs, draft files, scroll position, pending requests and transient credentials in memory.
@@ -32,9 +32,9 @@ Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/S
 - `bash ../tools/test-android-upgrade.sh` passed independently on API 35. VersionCode 2 → 3 retained Android preferences, SQLite activity history, WebView settings and session, and IndexedDB history and attachment. The emulator rejected an incompatible APK signature. [Upgrade log](https://github.com/SDAkshevskij/Linkup/actions/runs/46043809149)
 - The diagnostic sequence fixed screenshot collection after test APK cleanup, exercised the physical emulator size so its simulated cutout reached the app, and checked reachability after ordinary page and form scrolling. The short landscape IME viewport uses a scrolling settings header. [Initial diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46038612229) · [Landscape IME diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46040961760)
 
-## Next action for Codex
+## Current work and handoff
 
-Review [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3) with the emulator screenshots and signed-upgrade evidence. Verify system bars, cutouts and keyboard behavior on a physical Android phone. Production signing still depends on the owner configuring `linkup-release`, and the original cloud report needs a physical-device test with a dedicated account.
+The branch `fix/activity-cloud-p0` starts at `bf1df8a`. The latest code-bearing main workflow passed at `853d475`. TASKS.md governs P0-A local Activity, P0-B legacy cloud containment, and P0-C Android connectivity and physical round-trip verification. E2EE and the local keyboard remain in P1. No production workflow is being dispatched. [Main CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46047931490)
 
 ## Owner physical-device finding — Activity reliability
 

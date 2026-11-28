@@ -128,7 +128,7 @@ Do not chase a meaningless percentage target. Cover risk.
 
 ## 6. Activity-specific current mission
 
-Current P0 is to repair and prove real Activity collection, then redesign the Activity experience.
+TASKS.md sets the current priorities. P0-A restores and proves local collection and provides a focused source-control and diagnostics surface. The broader timeline redesign remains P2. P0-B contains legacy plaintext transport and P0-C requires physical connectivity evidence. The common E2EE channel and keyboard are P1.
 
 ### Android proof path
 Usage Access -> real UsageEvents -> Collector -> SQLite -> native bridge -> activity.js -> rendered timeline.
@@ -183,8 +183,7 @@ Do not retain the current checkbox + separate permission button form.
 Desired interaction model:
 - enabling Apps checks Usage Access and, if missing, launches the relevant OS flow; returning to LinkUp automatically rechecks state;
 - enabling Location does the same for location permissions;
-- cloud/background-session details are behind a secondary “cloud/advanced” surface;
-- only show the background-session password when cloud Activity sync is enabled and main Supabase is connected;
+- show local health and the paused cloud state separately. Cloud Activity stays paused until the relevant E2EE gates pass;
 - diagnostics live behind a compact inspector icon/sheet;
 - the timeline is the visual hero;
 - device/app/overlap information is understandable at a glance;

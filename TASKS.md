@@ -17,7 +17,7 @@ Priority contract (owner): P0 = immediate blocker or urgent safety containment; 
 - [ ] P0-C — Verify basic cloud connection and release continuity with disposable test credentials on real devices, not just mocks. Acceptance substeps:
   - [ ] Confirm cloud connection on a physical Android device with a dedicated test account. The reported device-specific cause remains unverified.
   - [ ] End-to-end Transfer sync with test accounts; Activity verification is covered by P0-A.
-  - [ ] Owner reviews the workflow, creates and backs up the signing key privately, configures the protected GitHub environment, and dispatches the first production release after merge. Never share the private key or its password in chat or Git.
+  - [x] Protected release environment exists and v0.2.1 is published. Preserve signing continuity when future publication is authorized. [Published release](https://github.com/SDAkshevskij/Linkup/releases/tag/v0.2.1)
   - [ ] No production release without applicable safety gates, signing and owner approval.
 
 ## P1 — Secure end-to-end data channel (mandatory cloud-sync gate)
