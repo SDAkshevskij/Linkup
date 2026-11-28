@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Per-user native collector. No keystrokes, window titles, or content collected."""
-import os, sys, json, sqlite3, time, subprocess, re, uuid, shutil, fcntl
+import os, sys, json, sqlite3, time, subprocess, re, uuid, shutil, fcntl, signal
 from pathlib import Path
 from contextlib import closing, contextmanager
 ROOT=Path(os.environ.get('XDG_DATA_HOME',Path.home()/'.local/share'))/'linkup'; ROOT.mkdir(parents=True,exist_ok=True,mode=0o700); ROOT.chmod(0o700)
@@ -137,6 +137,30 @@ def collector(next_program=lambda: None):
   last,previous,prior_lock=current,now,lock
   time.sleep(5)
 
+def stop_stale_agent(pid):
+ # Pin the process before reading /proc so a reused PID cannot receive the signal.
+ if not hasattr(os,'pidfd_open') or not hasattr(signal,'pidfd_send_signal'):
+  return False
+ try:
+  handle=os.pidfd_open(pid)
+ except (OSError,ValueError):
+  return False
+ try:
+  process=Path('/proc')/str(pid)
+  if process.stat().st_uid!=os.getuid():
+   return False
+  args=process.joinpath('cmdline').read_bytes().split(b'\0')
+  if (len(args)!=3 or Path(os.fsdecode(args[0])).resolve()!=Path(sys.executable).resolve()
+      or Path(os.fsdecode(args[1])).resolve()!=Path(__file__).resolve()):
+   return False
+  signal.pidfd_send_signal(handle,signal.SIGTERM)
+  signal.pidfd_send_signal(handle,signal.SIGCONT)
+  return True
+ except (OSError,ValueError):
+  return False
+ finally:
+  os.close(handle)
+
 class Supervisor:
  def __init__(self):
   self.child=None
@@ -149,6 +173,8 @@ class Supervisor:
    last=max(self.started,health.get('heartbeat',0) if health.get('pid')==self.child.pid else 0)
    if now-last>HEARTBEAT_LIMIT:
     self.child.terminate()
+    try:self.child.send_signal(signal.SIGCONT)
+    except ProcessLookupError:pass
    return
   if 0<=now-health.get('heartbeat',0)<HEARTBEAT_LIMIT and health.get('pid'):
    try:
@@ -157,6 +183,9 @@ class Supervisor:
    except ProcessLookupError:
     pass
    except PermissionError:
+    return
+  if health.get('pid') and now-health.get('heartbeat',0)>=HEARTBEAT_LIMIT:
+   if stop_stale_agent(health['pid']):
     return
   self.started=now
   self.child=subprocess.Popen([sys.executable,str(Path(__file__).with_name('agent.py'))],

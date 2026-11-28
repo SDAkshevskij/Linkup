@@ -42,7 +42,7 @@ def probe():
     processes=[]
     supervisor=agent.Supervisor()
     def spawn(*args):
-        child=subprocess.Popen(args,stdout=subprocess.DEVNULL,stderr=subprocess.DEVNULL)
+        child=subprocess.Popen(args)
         processes.append(child)
         return child
 
@@ -50,9 +50,9 @@ def probe():
     window=None
     try:
         spawn('openbox')
-        wait_for(lambda:'window id' in agent.cmd('xprop','-root','_NET_SUPPORTING_WM_CHECK').lower())
-        spawn('xterm','-class','LinkUpFixtureOne','-title','LinkUp Fixture One')
-        spawn('xterm','-class','LinkUpFixtureTwo','-title','LinkUp Fixture Two')
+        wait_for(lambda:'Openbox' in agent.cmd('wmctrl','-m'))
+        spawn(sys.executable,__file__,'window','LinkUpFixtureOne','LinkUp Fixture One')
+        spawn(sys.executable,__file__,'window','LinkUpFixtureTwo','LinkUp Fixture Two')
         wait_for(lambda:'LinkUp Fixture One' in agent.cmd('wmctrl','-l') and
                          'LinkUp Fixture Two' in agent.cmd('wmctrl','-l'))
         agent.configure({'enabled':True,'device_name':'Fixture X11'})
@@ -60,7 +60,7 @@ def probe():
         def activate(title):
             subprocess.run(['wmctrl','-a',title],check=True)
         activate('LinkUp Fixture One')
-        wait_for(lambda:agent.diagnostics().get('last_app')=='LinkUpFixtureOne')
+        wait_for(lambda:agent.diagnostics().get('last_app','').lower()=='linkupfixtureone')
         activate('LinkUp Fixture Two')
         def first_row():
             return next((r for r in agent.rows(0,int(time.time()*1000)+1)
@@ -70,7 +70,7 @@ def probe():
         supervisor.child.terminate()
         supervisor.child.wait(timeout=5)
         supervisor.ensure()
-        wait_for(lambda:agent.diagnostics().get('pid')!=old_pid and agent.diagnostics().get('last_app')=='LinkUpFixtureTwo')
+        wait_for(lambda:agent.diagnostics().get('pid')!=old_pid and agent.diagnostics().get('last_app','').lower()=='linkupfixturetwo')
         assert first_row(), 'history survives collector restart'
 
         with native.http.server.ThreadingHTTPServer(('127.0.0.1',0),
@@ -87,13 +87,16 @@ def probe():
                     if (document.querySelector('#activityView').hidden)
                         document.querySelector('[data-page=activity]').click();
                     return [...document.querySelectorAll('#actTimeline .time-dot')]
-                        .some(item => item.title.includes('LinkUpFixtureOne'));
+                        .some(item => item.title.toLowerCase().includes('linkupfixtureone'));
                 })()""",lambda value:result.update(rendered=value))
             timer=QTimer(window)
             timer.timeout.connect(poll)
             timer.start(300)
             wait_for(lambda:result.get('rendered'),pump=application.processEvents)
             timer.stop()
+            if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
+                application.processEvents()
+                assert window.grab().save(screenshot)
             sip.delete(window.view)
             window.close()
             window=None
@@ -110,5 +113,16 @@ def probe():
                 child.wait(timeout=5)
 
 
-if __name__=='__main__' and sys.argv[1:]==['probe']:
-    probe()
+if __name__=='__main__':
+    if sys.argv[1:]==['probe']:
+        probe()
+    elif sys.argv[1:2]==['window']:
+        from PyQt5.QtWidgets import QApplication, QWidget
+        name,title=sys.argv[2:4]
+        application=QApplication([name,'-name',name])
+        application.setApplicationName(name)
+        client=QWidget()
+        client.setWindowTitle(title)
+        client.resize(240,140)
+        client.show()
+        sys.exit(application.exec_())

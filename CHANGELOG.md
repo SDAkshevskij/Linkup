@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased — Activity reliability and cloud containment
+
+- Repaired Android foreground bootstrap and Linux X11 diagnostics. Rendered local SQLite history independently of cloud access and moved source permissions into integrated controls.
+- Paused native cloud Activity and required separate account-scoped consent for legacy Transfer. Restricted transport to HTTPS/WSS and public Supabase keys. Preserved local history and added a credential-free Android connectivity probe.
+- Added real Android foreground and X11 focus integration tests, plus regression scenarios for consent and unsafe transport. [P0 verification](linkup-v0.2.0/P0-VERIFICATION.md)
+
 ## v0.2.1 — published
 
 - Added main-only GitHub Releases workflow using an owner-controlled PKCS12. Both clients check release versions and download checksums. Android verifies the APK identity and signing certificate and invokes the system installer. Linux updates its per-user installation and restores the previous version if the new UI fails to load.

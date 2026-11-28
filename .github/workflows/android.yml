@@ -98,7 +98,7 @@ jobs:
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox xterm wmctrl x11-utils xprintidle
+          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox wmctrl x11-utils xprintidle
       - name: Linux agent and packaged upgrade tests
         working-directory: linkup-v0.2.0
         env:
@@ -106,4 +106,12 @@ jobs:
           QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
           LINKUP_TEST_WEBENGINE: '1'
           LINKUP_TEST_X11: '1'
+          LINKUP_X11_SCREENSHOT: ${{ runner.temp }}/linkup-x11.png
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: X11 activity timeline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-Activity
+          path: ${{ runner.temp }}/linkup-x11.png
+          if-no-files-found: warn

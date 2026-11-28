@@ -10,10 +10,13 @@
 - `.github/workflows/release.yml`: main-only release pipeline. Keeps release credentials in the protected environment and publishes the signed APK, the Linux installer and SHA-256 checksums after CI.
 - `linkup-v0.2.0/version.properties`: shared release name and numeric version code.
 
-## Data flow on the published baseline
-Local-first: native SQLite activity storage and IndexedDB transfer storage; Supabase for authorized structured records and sync, Yandex Disk or Google Drive for binary attachments. Transfer uses foreground Realtime/polling and queued changes; activity background uploads are opt-in with a separate auth session. No continuous guarantee on Android scheduling. Location is periodic and optional, not a continuous route. Android system usage access and location permissions must be granted by the owner.
+## Data flow
 
-TASKS.md defines the active P0 changes. The published Activity collector and cloud routes are under repair and containment. Baseline smoke and upgrade evidence does not establish real event collection or physical cloud reachability.
+Activity reads only the native SQLite event store. Android initializes foreground state from recent real UsageEvents and counts time from the opt-in cursor. It collects on opening the day view and in a periodic JobScheduler job. Linux samples idle time and the active X11 window from a single locked agent process. Its UI supervises the process and shows source health and Wayland limitations. Location remains optional on Android. Native Activity upload and refresh credentials are removed from the active collection path. Existing local and server history are left in place.
+
+Transfer uses IndexedDB for local text and files. Supabase login can validate access to the schema without starting synchronization. Legacy cloud Transfer requires a separate opt-in scoped to the account and project. The cloud path requires HTTPS/WSS and a public key. Local drafts created while opt-out stay local, and automatic expiry applies to local history. Clipboard input is manual. The common E2EE transport remains P1. The Android connectivity inspector compares the WebView login/schema stage with an unauthenticated native HTTPS probe.
+
+TASKS.md sets active priorities. Baseline smoke and upgrade evidence does not establish physical-device Activity or cloud reachability. [Test matrix and physical checks](linkup-v0.2.0/P0-VERIFICATION.md)
 
 ## Android window and UI lifecycle
 
