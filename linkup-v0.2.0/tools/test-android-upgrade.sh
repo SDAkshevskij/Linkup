@@ -44,10 +44,6 @@ test_sources=app/src/androidTest/java/io/linkup/app
 # Build each test APK against its target so target-provided libraries match that version.
 cp "$project/android/$test_sources/"{WebViewProbe,UpgradeTest}.java "$legacy/$test_sources/"
 (
-  cd "$legacy"
-  gradle :app:assembleDebug :app:assembleDebugAndroidTest
-)
-(
   cd "$project/android"
   gradle :app:assembleRelease :app:assembleDebugAndroidTest
 )
@@ -75,6 +71,16 @@ LINKUP_KEYSTORE_BASE64="$(base64 -w0 "$work/test.p12")" \
   bash "$project/tools/prepare-release.sh"
 released="$work/linkup-release/LinkUp-Android-$code.apk"
 sign wrong "$work/wrong.apk" "$new"
+if [[ $code == 4 ]]; then
+  mkdir "$work/update-fixtures"
+  cp "$released" "$work/update-fixtures/candidate.apk"
+  cp "$work/wrong.apk" "$work/update-fixtures/"
+  printf "\nandroid.sourceSets.androidTest.assets.srcDir('%s')\n" "$work/update-fixtures" >> "$legacy/app/build.gradle"
+fi
+(
+  cd "$legacy"
+  gradle :app:assembleDebug :app:assembleDebugAndroidTest
+)
 sign test "$work/old-tests.apk" "$legacy/$tests"
 sign test "$work/new-tests.apk" "$project/android/$tests"
 adb uninstall io.linkup.app.test >/dev/null 2>&1 || true
@@ -89,6 +95,7 @@ instrument() {
 instrument seed "$previous"
 # Confirm that the old WebView profile has persisted the fixture after its first process exits.
 instrument verify "$previous"
+if [[ $code == 4 ]]; then instrument validate "$previous"; fi
 if result=$(adb install -r "$work/wrong.apk" 2>&1); then
   echo 'Android accepted an incompatible signature' >&2
   exit 1

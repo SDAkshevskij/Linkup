@@ -60,3 +60,54 @@ test('Google Drive never forwards the bearer token to a supplied foreign upload 
     assert.equal(visited.length,2);
     assert.ok(visited.every(url=>new URL(url).hostname==='www.googleapis.com'));
 });
+
+test('a caller signal cannot bypass account revocation', async t => {
+    let signal;
+    t.mock.method(globalThis,'fetch',(_url,options)=>{
+        signal=options.signal;
+        return new Promise((_,reject)=>signal.addEventListener('abort',()=>reject(new Error('stopped')),{once:true}));
+    });
+    const client=new Supabase('https://example.test','public',
+        {user,access_token:'synthetic',expires_at:Date.now()/1000+900},()=>{});
+    const pending=client.request('linkup_items',{signal:new AbortController().signal});
+    pending.catch(()=>{});
+    await new Promise(resolve=>setImmediate(resolve));
+    client.disconnect();
+    assert.equal(signal.aborted,true);
+    await assert.rejects(pending);
+});
+
+test('refresh cannot replace the signed-in account', async t => {
+    const calls=t.mock.method(globalThis,'fetch',async()=>json({
+        user:{id:'different-account'},access_token:'other',refresh_token:'other-refresh',expires_in:3600,
+    }));
+    const client=new Supabase('https://example.test','public',
+        {user,access_token:'synthetic',refresh_token:'synthetic-refresh',expires_at:0},()=>{});
+    await assert.rejects(client.list(),/сесс/);
+    assert.equal(client.session.user.id,user.id);
+    assert.equal(calls.mock.callCount(),1);
+});
+
+test('a stalled response body times out and the same client can retry',async t=>{
+    let stalled=true, signal;
+    t.mock.method(globalThis,'fetch',async(_url,opts)=>{
+        signal=opts.signal;
+        return stalled?new Response(new ReadableStream({start(){}})):json([]);
+    });
+    const client=new Supabase('https://example.test','public',
+        {user,access_token:'fixture',expires_at:Date.now()/1000+900},()=>{});
+    client.requestTimeout=20;
+    await assert.rejects(client.list(),{status:408});
+    assert.ok(signal.aborted);
+    stalled=false;
+    assert.deepEqual(await client.list(),[]);
+});
+
+test('pagination terminates when the server repeats a page',async t=>{
+    const page=Array.from({length:500},(_,index)=>({id:String(index)}));
+    const calls=t.mock.method(globalThis,'fetch',async()=>json(page));
+    const client=new Supabase('https://example.test','public',
+        {user,access_token:'fixture',expires_at:Date.now()/1000+900},()=>{});
+    await assert.rejects(client.list(),/Повтор страницы/);
+    assert.equal(calls.mock.callCount(),2);
+});

@@ -141,5 +141,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Linux-Activity
-          path: ${{ runner.temp }}/linkup-x11.png
+          path: |
+            ${{ runner.temp }}/linkup-x11.png
+            ${{ runner.temp }}/linkup-settings.png
           if-no-files-found: warn

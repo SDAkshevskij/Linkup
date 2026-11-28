@@ -56,3 +56,26 @@ export function clipToDay(rows, {from, to}) {
         return [{...row, start_ms: Math.max(from, start), end_ms: Math.min(to, end)}];
     });
 }
+
+export function uniqueActivity(rows) {
+    const seen=new Set();
+    return rows.filter(row=>{
+        const identity=JSON.stringify([row.device_id,row.kind,row.app,row.start_ms,row.end_ms,row.lat,row.lon]);
+        if(seen.has(identity))return false;
+        seen.add(identity);
+        return true;
+    });
+}
+
+export async function withActivityDeadline(read, timeout = 8000) {
+    let timer;
+    try{
+        return await Promise.race([
+            read(),
+            new Promise((_,reject)=>{
+                timer=setTimeout(()=>reject(Error('Activity read timed out')),timeout);
+                timer.unref?.();
+            }),
+        ]);
+    }finally{clearTimeout(timer);}
+}

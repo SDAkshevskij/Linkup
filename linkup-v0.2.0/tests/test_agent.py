@@ -33,4 +33,15 @@ class AgentTest(unittest.TestCase):
   self.assertIsNone(agent.cfg()['session'])
   self.assertFalse(agent.cfg()['cloud'])
   self.assertEqual(len(agent.rows(0,3000)),1)
+ def test_old_sample_cannot_write_after_erase_and_reenable(self):
+  observed=agent.cfg()
+  agent.erase()
+  agent.configure(dict(enabled=True,device_id=self.device,device_name='Mint'))
+  agent.emit('app',1000,2000,'code','Code',config=observed)
+  self.assertEqual(agent.rows(0,3000),[])
+ def test_small_forward_clock_jump_does_not_count_as_activity(self):
+  self.assertTrue(agent.continuous_sample(5000,5000))
+  self.assertFalse(agent.continuous_sample(9000,5000))
+  self.assertFalse(agent.continuous_sample(-1000,5000))
+  self.assertFalse(agent.continuous_sample(65000,5000))
 if __name__=='__main__':unittest.main()

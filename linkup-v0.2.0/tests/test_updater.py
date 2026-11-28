@@ -70,6 +70,15 @@ class UpdateTest(unittest.TestCase):
             updater.extract(self.work / "unsafe.zip", self.work / "stage", 4)
         self.assertFalse((self.work / "escape").exists())
 
+    def test_download_conflict_does_not_remove_the_existing_file(self):
+        path = self.work / "already-complete"
+        path.write_bytes(b"existing")
+        release = updater.Release("v0.2.2", "", 4, "fixture", "unused", 8)
+        with patch.object(updater, "request", return_value=io.BytesIO(b"new data")):
+            with self.assertRaises(FileExistsError):
+                updater.download(release, path, lambda: False, lambda _: None)
+        self.assertEqual(path.read_bytes(), b"existing")
+
     def test_failed_start_restores_previous_version(self):
         data = self.work / "data"
         data.write_bytes(b"unchanged")

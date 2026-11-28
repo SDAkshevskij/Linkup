@@ -60,6 +60,11 @@ final class Collector extends SQLiteOpenHelper {
  void emit(SQLiteDatabase d,String kind,long start,long end,String app,Location loc)throws Exception{if(end<start||kind.equals("app")&&end==start)return;String id=UUID.nameUUIDFromBytes((p.getString("device_id","")+":"+kind+":"+start+":"+end+":"+app).getBytes(StandardCharsets.UTF_8)).toString();JSONObject r=new JSONObject().put("id",id).put("device_id",p.getString("device_id","")).put("device_name",p.getString("device_name","Android")).put("platform","android").put("kind",kind).put("start_ms",start).put("end_ms",end);r.put("app",app==null?JSONObject.NULL:app).put("label",app==null?JSONObject.NULL:label(app)).put("lat",loc==null?JSONObject.NULL:loc.getLatitude()).put("lon",loc==null?JSONObject.NULL:loc.getLongitude()).put("accuracy",loc==null?JSONObject.NULL:loc.getAccuracy());ContentValues v=new ContentValues();v.put("id",id);v.put("owner","");v.put("start",start);v.put("end",end);v.put("payload",r.toString());d.insertWithOnConflict("events",null,v,SQLiteDatabase.CONFLICT_IGNORE);}
  private static final long LOOKBACK=TimeUnit.MINUTES.toMillis(30);
  private static final long DELIVERY_DELAY=1500;
+ static boolean clockDiscontinuity(long wall, long elapsed, long priorWall, long priorElapsed) {
+  if(priorWall<=0||priorElapsed<0)return false;
+  long delta=elapsed-priorElapsed;
+  return delta<0||Math.abs((wall-priorWall)-delta)>2000;
+ }
  private static final class UsageState {
   String app="",activity="";
   boolean screen;
@@ -87,16 +92,20 @@ final class Collector extends SQLiteOpenHelper {
   synchronized(LOCK){
    if(p.getBoolean("cloud",false)||p.contains("session")||p.contains("url")||p.contains("key"))disableCloud();
    if(!p.getBoolean("enabled",false))return;
-   long now=System.currentTimeMillis();
-   p.edit().putLong("last_attempt",now).apply();
+   long now=System.currentTimeMillis(), elapsed=SystemClock.elapsedRealtime();
+   boolean clockChanged=clockDiscontinuity(now,elapsed,p.getLong("last_attempt",0),p.getLong("last_elapsed",-1));
+   p.edit().putLong("last_attempt",now).putLong("last_elapsed",elapsed).apply();
    if(!allowed()){
     p.edit().putBoolean("bootstrap",true).putLong("cursor",now).remove("app").remove("screen")
         .putString("collect_error","Нет доступа к статистике приложений").apply();
     return;
    }
    long cursor=p.getLong("cursor",now), end=now-DELIVERY_DELAY;
-   if(cursor>now||now-cursor>TimeUnit.DAYS.toMillis(3)){
-    p.edit().putBoolean("bootstrap",true).putLong("cursor",now).remove("app").remove("screen").apply();
+   if(clockChanged||cursor>now||now-cursor>TimeUnit.DAYS.toMillis(3)){
+    var reset=p.edit().putBoolean("bootstrap",true).putLong("cursor",now)
+        .remove("app").remove("screen").remove("activity_class");
+    if(clockChanged&&p.getBoolean("location",false))reset.putLong("location_since",now).remove("last_location");
+    reset.apply();
     return;
    }
    if(end<=cursor)return;
@@ -136,7 +145,7 @@ final class Collector extends SQLiteOpenHelper {
      if(event.getEventType()==UsageEvents.Event.SCREEN_INTERACTIVE)emit(db,"screen",t,t,null,null);
      if(event.getEventType()==UsageEvents.Event.KEYGUARD_HIDDEN)emit(db,"unlock",t,t,null,null);
     }
-    if(!allowed())return;
+    if(!allowed()||Thread.currentThread().isInterrupted())return;
     if(state.screen&&!state.app.isEmpty())emit(db,"app",start,end,state.app,null);
     db.setTransactionSuccessful();
    }finally{db.endTransaction();}
@@ -196,7 +205,7 @@ final class Collector extends SQLiteOpenHelper {
   long time = best.getTime();
   synchronized (LOCK) {
    if (!p.getBoolean("enabled", false) || !p.getBoolean("location", false) || !locationAllowed()
-       || now - time > TimeUnit.MINUTES.toMillis(15) || time <= p.getLong("last_location", 0)
+       || time > System.currentTimeMillis() || now - time > TimeUnit.MINUTES.toMillis(15) || time <= p.getLong("last_location", 0)
        || time < p.getLong("location_since", 0)) return;
    emit(getWritableDatabase(), "location", time, time, null, best);
    p.edit().putLong("last_location", time).apply();

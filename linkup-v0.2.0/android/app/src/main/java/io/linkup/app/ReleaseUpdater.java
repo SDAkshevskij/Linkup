@@ -51,7 +51,7 @@ final class ReleaseUpdater {
     }
 
     void check() {
-        if (active || closed) return;
+        if (active || closed || pending != null) return;
         run("Проверяем обновления…", (stop, progress) -> {
             PackageInfo current = activity.getPackageManager().getPackageInfo(
                     activity.getPackageName(), PackageManager.GET_SIGNING_CERTIFICATES);
@@ -154,6 +154,7 @@ final class ReleaseUpdater {
         new AlertDialog.Builder(activity).setTitle("Обновление готово")
                 .setMessage("Android запросит подтверждение установки. Локальные данные сохранятся.")
                 .setNegativeButton("Позже", (dialog, which) -> discard())
+                .setOnCancelListener(dialog -> discard())
                 .setPositiveButton("Установить", (dialog, which) -> install()).show();
     }
 

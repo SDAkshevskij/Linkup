@@ -12,29 +12,69 @@ def transaction():
  with closing(db()) as connection, connection:
   yield connection
 
+def read_config(connection):
+ return {row['k']:json.loads(row['v']) for row in connection.execute('select * from config')}
+
+def write_config(connection, values):
+ connection.executemany('insert or replace into config values(?,?)',[(key,json.dumps(value)) for key,value in values.items()])
+
 def cfg():
- with transaction() as c:return {r['k']:json.loads(r['v']) for r in c.execute('select * from config')}
+ with transaction() as connection:return read_config(connection)
+
 def setcfg(values):
- with transaction() as c:c.executemany('insert or replace into config values(?,?)',[(k,json.dumps(v)) for k,v in values.items()])
+ with transaction() as connection:write_config(connection,values)
+
 def configure(options):
  if options.get('cloud'):
   raise ValueError('Облачная активность приостановлена')
- old=cfg()
- setcfg(dict(enabled=bool(options.get('enabled')),location=False,cloud=False,session=None,owner='',
-             device_id=options.get('device_id') or old.get('device_id') or str(uuid.uuid4()),
-             device_name=options.get('device_name') or old.get('device_name') or 'Linux Mint'))
+ with transaction() as connection:
+  connection.execute('BEGIN IMMEDIATE')
+  old=read_config(connection)
+  enabled=bool(options.get('enabled'))
+  revision=old.get('consent_revision',0)+int(enabled!=bool(old.get('enabled')))
+  write_config(connection,dict(enabled=enabled,location=False,cloud=False,session=None,owner='',
+      consent_revision=revision, device_id=options.get('device_id') or old.get('device_id') or str(uuid.uuid4()),
+      device_name=options.get('device_name') or old.get('device_name') or 'Linux Mint'))
 
 def emit(kind,start,end,app=None,label=None,config=None,**extra):
- c=config or cfg()
- if not c.get('enabled'):return
- owner='';r=dict(id=str(uuid.uuid4()),device_id=c['device_id'],device_name=c['device_name'],platform='linux',kind=kind,app=app,label=label,start_ms=start,end_ms=end,lat=None,lon=None,accuracy=None);r.update(extra)
- with transaction() as con:con.execute('insert into events(id,owner,start,end,payload) values(?,?,?,?,?)',(r['id'],owner,start,end,json.dumps(r)))
+ with transaction() as connection:
+  connection.execute('BEGIN IMMEDIATE')
+  current=read_config(connection)
+  if not current.get('enabled') or end<start:return
+  if config and any(config.get(key)!=current.get(key) for key in ('consent_revision','device_id','device_name')):return
+  row=dict(id=str(uuid.uuid4()),device_id=current['device_id'],device_name=current['device_name'],
+           platform='linux',kind=kind,app=app,label=label,start_ms=start,end_ms=end,lat=None,lon=None,accuracy=None)
+  row.update(extra)
+  connection.execute('insert into events(id,owner,start,end,payload) values(?,?,?,?,?)',
+                      (row['id'],'',start,end,json.dumps(row)))
+
 def rows(a,b):
  with transaction() as c:return [dict(json.loads(x['payload']),owner=x['owner']) for x in c.execute('select * from events where start<? and end>=? order by start',(b,a))]
+
 def erase():
- setcfg({'enabled':False,'cloud':False,'location':False,'session':None,'owner':''})
- with transaction() as c:c.execute('delete from events')
+ with transaction() as connection:
+  connection.execute('BEGIN IMMEDIATE')
+  revision=read_config(connection).get('consent_revision',0)+1
+  write_config(connection,{'enabled':False,'cloud':False,'location':False,'session':None,'owner':'',
+                          'consent_revision':revision})
+  connection.execute('delete from events')
+
 HEARTBEAT_LIMIT=45
+try:
+ BOOT_ID=Path('/proc/sys/kernel/random/boot_id').read_text().strip()
+except OSError:
+ BOOT_ID=None
+
+def heartbeat_age(health):
+ if BOOT_ID and health.get('boot_id')==BOOT_ID and 'monotonic' in health:
+  return time.monotonic()-health['monotonic']
+ if BOOT_ID and health.get('boot_id'):
+  return float('inf')
+ age=time.time()-health.get('heartbeat',0)
+ return age if age>=0 else float('inf')
+
+def continuous_sample(wall_ms, monotonic_ms):
+ return 0<wall_ms<=12000 and 0<monotonic_ms<=12000 and abs(wall_ms-monotonic_ms)<=1000
 
 def source_error():
  if os.environ.get('XDG_SESSION_TYPE','').lower()=='wayland':
@@ -49,7 +89,7 @@ def source_error():
 def status():
  c=cfg()
  health=c.get('agent_health') or {}
- alive=0 <= time.time()-health.get('heartbeat',0) < HEARTBEAT_LIMIT
+ alive=0 <= heartbeat_age(health) < HEARTBEAT_LIMIT
  warning=source_error()
  if c.get('enabled') and not warning:
   warning=health.get('sample_error','') if alive else 'Агент запускается или не отвечает'
@@ -61,7 +101,8 @@ def diagnostics():
  with transaction() as connection:
   count,last=connection.execute('select count(*), max(end) from events').fetchone()
  display=os.environ.get('DISPLAY','')
- return dict(status(), **health, session_type=os.environ.get('XDG_SESSION_TYPE',''),
+ safe_health={key:value for key,value in health.items() if key not in ('boot_id','monotonic')}
+ return dict(status(), **safe_health, session_type=os.environ.get('XDG_SESSION_TYPE',''),
              display=display if re.fullmatch(r':\d+(?:\.\d+)?',display) else ('задан' if display else ''),
              xprop=bool(shutil.which('xprop')), xprintidle=bool(shutil.which('xprintidle')),
              local_count=count,last_event=last)
@@ -105,15 +146,17 @@ def collector(next_program=lambda: None):
  last=None
  start=None
  previous=None
+ previous_mono=None
  prior_lock=None
  signature=None
  while True:
   if program := next_program():return program
   now=int(time.time()*1000)
+  mono=time.monotonic()
   config=cfg()
   pause_legacy_cloud(config)
   enabled=config.get('enabled',False)
-  current_signature=(enabled,config.get('device_id'),config.get('device_name'))
+  current_signature=(enabled,config.get('consent_revision'),config.get('device_id'),config.get('device_name'))
   if current_signature!=signature:
    last=None
    previous=None
@@ -123,18 +166,19 @@ def collector(next_program=lambda: None):
   lock=locked() if enabled and not source_error() else None
   current,error=sample() if enabled and lock is not True else (None,'')
   if last and previous is not None:
-   gap=now-previous
+   contiguous=continuous_sample(now-previous,round((mono-previous_mono)*1000))
    # A suspend, clock jump or unavailable source can't establish the intervening usage.
-   end=now if 0<gap<=12000 and not error else previous
-   if current!=last or now-start>=15000 or gap<=0 or gap>12000:
-    if end>start and cfg().get('enabled'):emit('app',start,end,*last,config=config)
+   end=now if contiguous and not error else previous
+   if current!=last or now-start>=15000 or not contiguous or error:
+    if end>start:emit('app',start,end,*last,config=config)
     start=now
   if current!=last:start=now
-  if enabled and prior_lock is True and lock is False and cfg().get('enabled'):
+  if enabled and prior_lock is True and lock is False and previous is not None and continuous_sample(now-previous,round((mono-previous_mono)*1000)):
    emit('unlock',now,now,config=config)
   setcfg({'agent_health':{'pid':os.getpid(),'heartbeat':time.time(),'last_sample':now if enabled else 0,
-                          'last_app':current[1] if current else '', 'sample_error':error}})
-  last,previous,prior_lock=current,now,lock
+                          'last_app':current[1] if current else '', 'sample_error':error,
+                          'monotonic':time.monotonic(),'boot_id':BOOT_ID}})
+  last,previous,previous_mono,prior_lock=current,now,mono,lock
   time.sleep(5)
 
 def stop_stale_agent(pid):
@@ -167,16 +211,17 @@ class Supervisor:
   self.started=0
 
  def ensure(self):
-  now=time.time()
+  now=time.monotonic()
   health=cfg().get('agent_health') or {}
+  age=heartbeat_age(health)
   if self.child and self.child.poll() is None:
-   last=max(self.started,health.get('heartbeat',0) if health.get('pid')==self.child.pid else 0)
-   if now-last>HEARTBEAT_LIMIT:
+   age=min(now-self.started,age) if health.get('pid')==self.child.pid else now-self.started
+   if age>HEARTBEAT_LIMIT:
     self.child.terminate()
     try:self.child.send_signal(signal.SIGCONT)
     except ProcessLookupError:pass
    return
-  if 0<=now-health.get('heartbeat',0)<HEARTBEAT_LIMIT and health.get('pid'):
+  if 0<=age<HEARTBEAT_LIMIT and health.get('pid'):
    try:
     os.kill(health['pid'],0)
     return
@@ -184,7 +229,7 @@ class Supervisor:
     pass
    except PermissionError:
     return
-  if health.get('pid') and now-health.get('heartbeat',0)>=HEARTBEAT_LIMIT:
+  if health.get('pid') and age>=HEARTBEAT_LIMIT:
    if stop_stale_agent(health['pid']):
     return
   self.started=now

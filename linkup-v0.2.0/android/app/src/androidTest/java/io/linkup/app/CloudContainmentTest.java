@@ -9,6 +9,27 @@ import static io.linkup.app.WebViewProbe.waitTrue;
 
 @RunWith(AndroidJUnit4.class)
 public class CloudContainmentTest {
+    @Test public void transferBatchRollsBackMetadataAndBlobOnIndexedDbConflict() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            waitTrue(scenario,MobileUiTest.READY);
+            js(scenario,"""
+                window.atomicTransfer='waiting';
+                import('./db.js').then(async db=>{
+                    const key='fixture:'+crypto.randomUUID();
+                    const item={key,kind:'file',scope:'local'};
+                    try{
+                        await db.saveItems([{item,blob:new Blob(['synthetic'])},{item}]);
+                        window.atomicTransfer='accepted duplicate';
+                    }catch(error){
+                        window.atomicTransfer=error.name==='ConstraintError'
+                            && !(await db.get('items',key)) && !(await db.get('blobs',key));
+                    }finally{await db.removeItem(key);}
+                }).catch(()=>{window.atomicTransfer=false});true
+                """);
+            waitTrue(scenario,"window.atomicTransfer===true");
+        }
+    }
+
     @Test public void connectingDoesNotOptInOrUploadLocalDraft() throws Exception {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitTrue(scenario,MobileUiTest.READY);
@@ -79,6 +100,7 @@ public class CloudContainmentTest {
                     + "document.querySelector('#probeSupabase').click();true");
             waitTrue(scenario,"(()=>{const d=document.querySelector('#cloudProbeStatus');"
                     + "return d.textContent.includes('DNS') && !d.textContent.includes('.invalid')})()");
+            MobileScreenshotTest.capture(scenario,"settings-dns-error");
         }
     }
 }

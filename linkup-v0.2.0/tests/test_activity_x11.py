@@ -96,7 +96,20 @@ def probe(window_dir):
             def capture_and_quit():
                 if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
                     result['screenshot']=window.grab().save(screenshot)
-                application.quit()
+                    def capture_settings(opened):
+                        result['settings_open']=opened
+                        def completed():
+                            target=Path(screenshot).with_name("linkup-settings.png")
+                            result['settings_screenshot']=window.grab().save(str(target))
+                            application.quit()
+                        QTimer.singleShot(250,completed)
+                    window.page.runJavaScript("""(() => {
+                        document.querySelector('#settings').click();
+                        return document.querySelector('#settingsDialog').open &&
+                            document.querySelector('#settingsDialog').scrollWidth<=innerWidth;
+                    })()""",capture_settings)
+                else:
+                    application.quit()
 
             def measured(value):
                 if isinstance(value,dict):
@@ -132,6 +145,7 @@ def probe(window_dir):
             application.exec_()
             assert result.get('stage')=='complete', f'Qt timeline did not show the recorded row after date navigation: {result}'
             assert result.get('screenshot',True), 'screenshot could not be saved'
+            assert result.get('settings_open',True) and result.get('settings_screenshot',True), 'Qt settings screenshot failed'
             sip.delete(window.view)
             window.close()
             window=None

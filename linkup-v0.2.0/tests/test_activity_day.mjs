@@ -1,9 +1,24 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {clipToDay, dayScale, localDay, stepDay} from '../ui/activity-day.js';
+import {clipToDay, dayScale, localDay, stepDay, uniqueActivity, withActivityDeadline} from '../ui/activity-day.js';
 
 const actualDate = Date;
 let fixtureNumber = 0;
+
+test('identical observations on one device do not drop simultaneous observations on another',()=>{
+    const row={device_id:'one',kind:'unlock',start_ms:452,end_ms:452};
+    assert.deepEqual(uniqueActivity([row,{...row,id:'duplicate'},{...row,device_id:'two'}]),[
+        row,{...row,device_id:'two'},
+    ]);
+});
+
+test('an unanswered local read reaches a deadline and the next read is usable',async()=>{
+    const keepEventLoopAlive=setTimeout(()=>{},1000);
+    try{
+        await assert.rejects(withActivityDeadline(()=>new Promise(()=>{}),10),/timed out/);
+        assert.equal(await withActivityDeadline(()=>Promise.resolve('fresh data'),10),'fresh data');
+    }finally{clearTimeout(keepEventLoopAlive);}
+});
 
 async function withActivity(t, timezone, initial, check) {
     const timezoneBefore = process.env.TZ;
