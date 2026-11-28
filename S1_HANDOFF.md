@@ -26,7 +26,7 @@ RED evidence from this review:
 - The new JVM review test initially failed compilation because assemble, UntrustedParts and splitUntrusted did not exist.
 These then passed after the minimal production changes.
 
-Exact-head GitHub Actions evidence must still be read before any completion claim.
+GitHub Actions for code head `976a16f29921491a3228ec810a5d8177a4f8b66e` completed successfully: both Linux and Android jobs passed, including the new JVM framing test, libsodium oracle, existing PostgreSQL/X11 suite, Android build/lint, emulator and upgrade regressions. [CI run 46147328214](https://github.com/SDAkshevskij/Linkup/actions/runs/46147328214).
 
 ## Open Source First decisions
 
@@ -53,7 +53,7 @@ No production runtime dependency was added in this slice. CI installs distro lib
 
 | Case | State |
 |---|---|
-| Canonical framing, malformed/bounds, external KATs, synthetic fixture | Implemented in this draft; exact-head CI pending/reviewed separately |
+| Canonical framing, malformed/bounds, external KATs, synthetic fixture | Implemented; code head 976a16f passed [CI 46147328214](https://github.com/SDAkshevskij/Linkup/actions/runs/46147328214) |
 | Linux PyNaCl/native authenticated encrypt/decrypt | Pending |
 | Android libsodium JNI/native authenticated encrypt/decrypt | Pending |
 | Trusted sender/epoch lookup before decryption | Pending |
