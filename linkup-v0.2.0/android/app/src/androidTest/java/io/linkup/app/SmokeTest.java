@@ -42,4 +42,21 @@ public class SmokeTest {
             waitTrue(scenario, "document.querySelector('#message').value === 'LinkUp CI share test'");
         }
     }
+
+    @Test public void queuesTwoSharedIntentsInOrderBeforeTheWebViewReadsThem() throws Exception {
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+            waitTrue(scenario, MobileUiTest.READY);
+            js(scenario,"window.resumeShares=window.linkupImportShare;window.linkupImportShare=()=>{};true");
+            scenario.onActivity(activity -> {
+                for (String text : new String[]{"First synthetic share", "Second synthetic share"}) {
+                    activity.startActivity(new Intent(activity, MainActivity.class)
+                            .setAction(Intent.ACTION_SEND).setType("text/plain")
+                            .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(Intent.EXTRA_TEXT,text));
+                }
+            });
+            waitTrue(scenario,"JSON.parse(LinkUpNative.call('shareList','{}')).value.text==='First synthetic share'");
+            js(scenario,"window.linkupImportShare=window.resumeShares;window.linkupImportShare();true");
+            waitTrue(scenario,"document.querySelector('#message').value==='First synthetic share\\nSecond synthetic share'");
+        }
+    }
 }

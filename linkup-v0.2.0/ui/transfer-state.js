@@ -14,3 +14,12 @@ export function deleteLocally(current, allowRemote, timestamp) {
     if (current.scope==='local') return null;
     return {...current,deleted_at:timestamp,text_content:null,state:allowRemote?'delete':'hidden'};
 }
+
+export function boundSession(session, config) {
+    return session ? {...session, linkupProject:config.url, linkupAccount:config.email} : null;
+}
+
+export function sessionFits(session, config) {
+    return !session?.linkupProject ||
+        (session.linkupProject===config.url && session.linkupAccount===config.email);
+}

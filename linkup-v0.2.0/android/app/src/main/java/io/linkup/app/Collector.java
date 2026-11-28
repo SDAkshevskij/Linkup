@@ -6,9 +6,23 @@ final class Collector extends SQLiteOpenHelper {
  public void onCreate(SQLiteDatabase d){d.execSQL("CREATE TABLE events(id TEXT PRIMARY KEY, owner TEXT NOT NULL, start INTEGER, end INTEGER, payload TEXT NOT NULL, sent INTEGER DEFAULT 0)");d.execSQL("CREATE INDEX event_time ON events(start,end)");}
  public void onUpgrade(SQLiteDatabase d,int a,int b){}
  boolean allowed(){AppOpsManager a=c.getSystemService(AppOpsManager.class);return a.checkOpNoThrow(AppOpsManager.OPSTR_GET_USAGE_STATS,android.os.Process.myUid(),c.getPackageName())==AppOpsManager.MODE_ALLOWED;}
+ boolean observeUsageAccess(){
+  synchronized(LOCK){
+   boolean access=allowed();
+   if(p.getBoolean("last_usage_access",access)!=access||!p.contains("last_usage_access")){
+    SharedPreferences.Editor edit=p.edit().putBoolean("last_usage_access",access);
+    if(p.contains("last_usage_access")||!access){
+     edit.putLong("cursor",System.currentTimeMillis()).putBoolean("bootstrap",true)
+         .remove("app").remove("screen").remove("activity_class").remove("collect_error");
+    }
+    edit.apply();
+   }
+   return access;
+  }
+ }
  boolean locationAllowed(){return c.checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)==PackageManager.PERMISSION_GRANTED||c.checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)==PackageManager.PERMISSION_GRANTED;}
  JSONObject status() throws JSONException {
-  boolean enabled=p.getBoolean("enabled",false), access=allowed(), location=p.getBoolean("location",false);
+  boolean enabled=p.getBoolean("enabled",false), access=observeUsageAccess(), location=p.getBoolean("location",false);
   return new JSONObject().put("platform","android").put("enabled",enabled).put("usageAccess",access)
       .put("location",location).put("locationAccess",locationAllowed())
       .put("backgroundLocationAccess",c.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
@@ -95,7 +109,7 @@ final class Collector extends SQLiteOpenHelper {
    long now=System.currentTimeMillis(), elapsed=SystemClock.elapsedRealtime();
    boolean clockChanged=clockDiscontinuity(now,elapsed,p.getLong("last_attempt",0),p.getLong("last_elapsed",-1));
    p.edit().putLong("last_attempt",now).putLong("last_elapsed",elapsed).apply();
-   if(!allowed()){
+   if(!observeUsageAccess()){
     p.edit().putBoolean("bootstrap",true).putLong("cursor",now).remove("app").remove("screen")
         .putString("collect_error","Нет доступа к статистике приложений").apply();
     return;

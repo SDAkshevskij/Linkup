@@ -1,5 +1,5 @@
-import {all,get,put,saveItems,mutateItem,consumeInbox} from './db.js';
-import {acknowledgeUpload,deleteLocally,mergeRemote} from './transfer-state.js';
+import {all,get,saveItems,mutateItem,cacheBlob,consumeInbox} from './db.js';
+import {acknowledgeUpload,boundSession,deleteLocally,mergeRemote,sessionFits} from './transfer-state.js';
 import {Supabase,Drive,YandexDrive,assertPublicKey} from './cloud.js';
 import {projectUrl,signIn,verifyDisk,cloudStep} from './cloud-settings.js';
 import {native,initActivity} from './activity.js';
@@ -8,6 +8,7 @@ if(!crypto.randomUUID)crypto.randomUUID=()=>{const a=crypto.getRandomValues(new 
 const mobile=/Android|iPhone|iPad/i.test(navigator.userAgent);let config=read('linkup.config',{deviceName:mobile?'Телефон':'Компьютер',deviceId:crypto.randomUUID(),url:'',key:'',email:'',googleId:''});if(!config.diskProvider)config.diskProvider=config.googleId?'google':'yandex';write('linkup.config',config);
 function makeDrive(settings=config){return settings.diskProvider==='google'?new Drive(settings.googleId):new YandexDrive(settings.googleId);}
 let session=read('linkup.session',null), sb=null, drive=makeDrive(), scope='local', items=[],filter='all',staged=[],syncing=false,again=false,realtime=false,lastOk=false,syncError='',generation=0,progress=new Map(),toastTimer,confirmAction,viewed,retentionBusy=false,composing=false;let verifiedDrive=false;
+if(!sessionFits(session,config))session=null;
 const legacyEnabled=()=>!!sb&&scope!=='local'&&config.legacyScope===scope;
 const size=n=>{if(n<1024)return `${n} Б`;const units=['КБ','МБ','ГБ','ТБ'];let v=n/1024,i=0;while(v>=1024&&i<3){v/=1024;i++;}return `${v>=100?Math.round(v):Number(v.toFixed(1))} ${units[i]}`};const active=()=>items.filter(x=>!x.deleted_at);const localKey=(id,s=scope)=>`${s}:${id}`;const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 function toast(msg,error=false){$('toast').textContent=msg;$('toast').className=`toast${error?' error':''}`;$('toast').hidden=false;clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').hidden=true,4200);}
@@ -166,7 +167,7 @@ function askDelete(list){
     $('confirmDialog').showModal();
 }
 async function copyText(text){try{await native('copy',{text});toast('Скопировано');return;}catch{}try{await navigator.clipboard.writeText(text);toast('Скопировано');}catch{const t=document.createElement('textarea');t.value=text;document.body.append(t);t.select();const ok=document.execCommand('copy');t.remove();toast(ok?'Скопировано':'Буфер обмена недоступен',!ok);}}
-async function download(x){try{const revision=generation, disk=drive;const sameAccount=()=>x.scope==='local'||(scope===x.scope&&revision===generation);let b=(await get('blobs',x.key))?.blob;if(!sameAccount())return;if(!b){if(!x.drive_id)throw Error('Файл ещё не синхронизирован');if(!legacyEnabled()||!verifiedDrive||!drive.ready)throw Error('Подключите соответствующий облачный диск в настройках');toast('Скачивание…');b=await disk.download(x.drive_id);if(!sameAccount()||!legacyEnabled()||disk!==drive)return;try{const current=await get('items',x.key);if(current&&!current.deleted_at)await put('blobs',{key:x.key,blob:b});}catch{/* download still works if local cache is full */}}if(window.LinkUpNative){const id=await native('downloadBegin',{name:x.file_name,mime:x.mime_type||'application/octet-stream'});try{for(let off=0;off<b.size;off+=192*1024){const bytes=new Uint8Array(await b.slice(off,off+192*1024).arrayBuffer());let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));await native('downloadChunk',{id,data:btoa(str)});}await native('downloadEnd',{id});toast('Сохранено в Загрузки');}catch(e){await native('downloadAbort',{id}).catch(()=>{});throw e;}}else{const url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=x.file_name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}}catch(e){toast(e.message,true);}}
+async function download(x){try{const revision=generation, disk=drive;const sameAccount=()=>x.scope==='local'||(scope===x.scope&&revision===generation);let b=(await get('blobs',x.key))?.blob;if(!sameAccount())return;if(!b){if(!x.drive_id)throw Error('Файл ещё не синхронизирован');if(!legacyEnabled()||!verifiedDrive||!drive.ready)throw Error('Подключите соответствующий облачный диск в настройках');toast('Скачивание…');b=await disk.download(x.drive_id);if(!sameAccount()||!legacyEnabled()||disk!==drive)return;try{await cacheBlob(x.key,b,()=>sameAccount()&&legacyEnabled()&&disk===drive);}catch{/* download still works if local cache is full */}}if(!sameAccount())return;if(window.LinkUpNative){const id=await native('downloadBegin',{name:x.file_name,mime:x.mime_type||'application/octet-stream'});try{for(let off=0;off<b.size;off+=192*1024){if(!sameAccount())throw Error('Передача остановлена');const bytes=new Uint8Array(await b.slice(off,off+192*1024).arrayBuffer());let str='';for(let i=0;i<bytes.length;i+=8192)str+=String.fromCharCode(...bytes.subarray(i,i+8192));await native('downloadChunk',{id,data:btoa(str)});}if(!sameAccount())throw Error('Передача остановлена');await native('downloadEnd',{id});toast('Сохранено в Загрузки');}catch(e){await native('downloadAbort',{id}).catch(()=>{});throw e;}}else{const url=URL.createObjectURL(b),a=document.createElement('a');a.href=url;a.download=x.file_name;a.click();setTimeout(()=>URL.revokeObjectURL(url),60000);}}catch(e){toast(e.message,true);}}
 function action(e){const btn=e.target.closest('[data-action]');if(!btn)return;const x=items.find(a=>a.key===btn.closest('[data-id]')?.dataset.id);if(!x)return;switch(btn.dataset.action){case 'copy':copyText(x.text_content);break;case 'remove':askDelete([x]);break;case 'download':download(x);break;case 'open':if(x.kind==='file')download(x);else{viewed=x;$('viewText').textContent=x.text_content;$('viewDialog').showModal();}break;}}
 function openClean(){const options=[[1,'Старше суток'],[7,'Старше недели'],[30,'Старше месяца (30 дней)'],[90,'Старше 90 дней'],[0,'Вся история']];$('cleanOptions').innerHTML=options.map(([days,name])=>{const n=older(days).length;return `<button data-days="${days}" ${n?'':'disabled'}>${name}<span>${n}</span></button>`;}).join('');$('retention').value=String(read('linkup.retention.local',0));$('cleanDialog').showModal();}
 function older(days){return active().filter(x=>!days||Date.parse(x.created_at)<Date.now()-days*86400000);}async function retention(){if(retentionBusy)return;retentionBusy=true;try{const days=read('linkup.retention.local',0);if(days){const list=older(days).filter(x=>x.scope==='local');if(list.length)await deleteItems(list);}}finally{retentionBusy=false;}}
@@ -179,7 +180,7 @@ function setup(){
     scope=config.url&&session?.user?.id?`${config.url}:${session.user.id}`:'local';
     if(scope!=='local'&&config.key){
         try{sb=new Supabase(config.url, config.key, session, current=>{
-            session=current;write('linkup.session',session);
+            session=boundSession(current,config);write('linkup.session',session);
         });}catch{/* Invalid legacy credentials leave cached and local history accessible. */}
     }
     items=items.filter(item=>item.scope==='local'||item.scope===scope);
@@ -242,10 +243,12 @@ async function saveConfig(event) {
         const accountChanged=changed||nextSession?.user?.id!==session?.user?.id;
         const reset=accountChanged||next.diskProvider!==config.diskProvider||next.googleId!==config.googleId||Boolean(password);
         if (accountChanged) next.legacyScope=null;
+        nextSession=boundSession(nextSession,next);
+        // Persist the scoped session first. A crash between writes fails closed on reload.
+        write('linkup.session',nextSession);
+        write('linkup.config',next);
         config=next;
         session=nextSession;
-        write('linkup.config',config);
-        write('linkup.session',session);
         $('password').value='';
         if (reset) {
             setup();
@@ -327,7 +330,9 @@ $('probeSupabase').onclick=async()=>{
 };
 $('legacyTransfer').onclick=()=>{
     if(legacyEnabled()){
-        config={...config,legacyScope:null};write('linkup.config',config);setup();return;
+        config={...config,legacyScope:null};setup();
+        try{write('linkup.config',config);}catch{toast('Передача остановлена. Настройку не удалось сохранить',true);}
+        return;
     }
     if(!sb){updateCloudStatus('supabaseStatus','Сначала подключите Supabase');return;}
     $('legacyConsent').showModal();
@@ -336,7 +341,51 @@ $('allowLegacy').onclick=()=>{
     $('legacyConsent').close();
     if(!sb||cloudBusy)return;
     config={...config,legacyScope:scope};write('linkup.config',config);setup();
-};$('driveConnect').onclick=connectDrive;$('checkUpdate').onclick=()=>native('checkUpdate').catch(e=>toast(e.message,true));$('logout').onclick=()=>{if(cloudBusy)return;native('disableCloud').catch(()=>{});session=null;config={...config,legacyScope:null};write('linkup.config',config);write('linkup.session',null);setup();$('settingsDialog').close();toast('Локальный режим');};$('sync').onclick=()=>legacyEnabled()?sync(true):openSettings();$('status').onclick=()=>{if(syncError)toast(syncError,true);else openSettings();};window.addEventListener('online',()=>{sync();setStatus()});window.addEventListener('offline',setStatus);document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();retention();importShare();}});setInterval(()=>{if(!document.hidden)sync()},15000);setInterval(()=>{if(!document.hidden)retention()},60000);
-let importingShare=false;async function importShare(){if(importingShare)return;importingShare=true;try{if(window.LinkUpNative){const incoming=await native('shareList');if(incoming.text){$('message').value+=($('message').value?'\n':'')+incoming.text;resize();}for(const f of incoming.files){const parts=[];let offset=0;for(;;){const encoded=await native('shareRead',{index:f.index,offset});if(!encoded)break;const bytes=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));parts.push(bytes);offset+=bytes.length;if(f.size>=0&&offset>=f.size)break;}stage([new File(parts,f.name,{type:f.mime||'application/octet-stream'})]);}await native('shareClear');}const shared=await consumeInbox();for(const x of shared){if(x.files?.length)stage(x.files);if(x.text){$('message').value+=($('message').value?'\n':'')+x.text;resize();}}}catch(e){toast(e.message,true);}finally{importingShare=false;}}
+};$('driveConnect').onclick=connectDrive;$('checkUpdate').onclick=()=>native('checkUpdate').catch(e=>toast(e.message,true));$('logout').onclick=()=>{if(cloudBusy)return;native('disableCloud').catch(()=>{});session=null;config={...config,legacyScope:null};setup();try{write('linkup.session',null);write('linkup.config',config);}catch{toast('Текущая сессия остановлена. Настройки не сохранены',true);return;}$('settingsDialog').close();toast('Локальный режим');};$('sync').onclick=()=>legacyEnabled()?sync(true):openSettings();$('status').onclick=()=>{if(syncError)toast(syncError,true);else openSettings();};window.addEventListener('online',()=>{sync();setStatus()});window.addEventListener('offline',setStatus);document.addEventListener('visibilitychange',()=>{if(!document.hidden){sync();retention();importShare();}});setInterval(()=>{if(!document.hidden)sync()},15000);setInterval(()=>{if(!document.hidden)retention()},60000);
+let importingShare=false, shareRequestedAgain=false;
+function addSharedDraft(text,files){
+    if(text){
+        $('message').value+=($('message').value?'\n':'')+text;
+        resize();
+    }
+    if(files.length)stage(files);
+}
+async function importShare(){
+    if(importingShare){shareRequestedAgain=true;return;}
+    importingShare=true;
+    try{
+        if(window.LinkUpNative){
+            for(;;){
+                const incoming=await native('shareList');
+                if(!incoming.id)break;
+                const accepted=[];
+                let failed=false;
+                for(const file of incoming.files){
+                    try{
+                        const parts=[];
+                        let offset=0;
+                        while(file.size<0||offset<file.size){
+                            const encoded=await native('shareRead',{id:incoming.id,index:file.index,offset});
+                            if(!encoded)break;
+                            const bytes=Uint8Array.from(atob(encoded),character=>character.charCodeAt(0));
+                            parts.push(bytes);offset+=bytes.length;
+                        }
+                        if(file.size>=0&&offset!==file.size)throw Error('Incomplete attachment');
+                        accepted.push(new File(parts,file.name||'file',{type:file.mime||'application/octet-stream'}));
+                    }catch{failed=true;}
+                }
+                await native('shareClear',{id:incoming.id});
+                addSharedDraft(incoming.text,accepted);
+                if(failed)toast('Часть вложений недоступна. Отправьте их в LinkUp ещё раз.',true);
+            }
+        }
+        const shared=await consumeInbox();
+        for(const item of shared)addSharedDraft(item.text,item.files||[]);
+    }catch{toast('Не удалось импортировать данные',true);}
+    finally{
+        importingShare=false;
+        if(shareRequestedAgain){shareRequestedAgain=false;importShare();}
+    }
+}
 window.linkupImportShare=importShare;
 setup();initActivity(()=>config);importShare();

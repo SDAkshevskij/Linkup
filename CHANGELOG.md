@@ -1,6 +1,11 @@
 # Changelog
 
-## Unreleased — Activity reliability and cloud containment
+## v0.2.2 — release candidate
+
+- Hardened local Activity against wall-clock changes, repeated samples, overlapping app intervals, observed permission changes, and unanswered history reads.
+- Made Transfer submission atomic across text and attachments. Preserved local deletion during reconciliation, enforced project/session scope and applied bounded, cancelable cloud requests. Android Share preserves successive intents in order.
+- Reorganized Settings around device, cloud and disk. Android network diagnostics distinguish DNS, TLS, connection timeout, read timeout and HTTP while omitting project credentials and response bodies.
+- Added v0.2.1 published asset verification to Android and Linux upgrade tests. Added a release version confirmation and reviewed changelog notes to the protected workflow. [Stabilization audit](linkup-v0.2.0/STABILIZATION.md)
 
 - Repaired Android foreground bootstrap and Linux X11 diagnostics. Rendered local SQLite history independently of cloud access and moved source permissions into integrated controls.
 - Paused native cloud Activity and required separate account-scoped consent for legacy Transfer. Restricted transport to HTTPS/WSS and public Supabase keys. The repository's Supabase schema blocks authenticated Activity inserts from old clients when applied and preserves existing rows. Added a credential-free Android connectivity probe.

@@ -4,6 +4,10 @@ Priority contract (owner): P0 = immediate blocker or urgent safety containment; 
 
 ## P0 — restore existing functionality and contain privacy risk
 
+- [ ] v0.2.2 owner release gate. Review the candidate CI and screenshots, replicate physical Android/Mint and disposable-account checks, then approve the protected main-only workflow. The current Android timeout cause still requires the affected phone and a test project. [Stabilization matrix](linkup-v0.2.0/STABILIZATION.md)
+- [ ] P1 follow-up from v0.2.2 audit. Evaluate event-based X11 sampling for focus changes shorter than the 5-second polling interval, bound Share memory for large files, and validate Android revocation/regrant while LinkUp is killed. No fixture currently reproduces OEM background power limits, split screen or that offline permission sequence.
+- [ ] P1 follow-up from v0.2.2 audit. Exercise the full download and Android system installer handoff on an owner-signed candidate, including returning from install-source permission and rotating mid-update. CI uses the built-in certificate verifier plus Android package installation. Verify legacy Google/Yandex resumable uploads and scoped remote file deletion with disposable provider credentials.
+
 - [ ] P0-A — Repair Activity on both supported platforms (actual device events, not synthetic rows). Acceptance substeps:
   - [ ] Reproduce and fix the owner's report: after permissions are granted, Activity shows no real statistics on both physical Android and Linux Mint. Do not call Activity “working” until a real application transition produces a local event and that event appears in the LinkUp timeline on each supported platform.
   - [x] Android collector reconstructs foreground state from UsageEvents without recording before opt-in. Usage Access, cursor, last event, last app, local counts and JobScheduler health are observable.

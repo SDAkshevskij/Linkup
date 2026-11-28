@@ -40,5 +40,13 @@ export const mutateItem=(key,decide)=>tx(['items','blobs'],'readwrite',transacti
     };
     return {get result(){return result;}};
 });
+export const cacheBlob=(key,blob,allowed)=>tx(['items','blobs'],'readwrite',transaction=>{
+    const request=transaction.objectStore('items').get(key);
+    request.onsuccess=()=>{
+        if(allowed()&&request.result&&!request.result.deleted_at){
+            transaction.objectStore('blobs').put({key,blob});
+        }
+    };
+});
 export const removeItem=key=>tx(['items','blobs'],'readwrite',t=>{t.objectStore('items').delete(key);t.objectStore('blobs').delete(key);});
 export const consumeInbox=()=>tx(['inbox'],'readwrite',t=>{const s=t.objectStore('inbox'),r=s.getAll();s.clear();return r;});

@@ -1,6 +1,15 @@
 import assert from 'node:assert/strict';
 import {test} from 'node:test';
-import {acknowledgeUpload,deleteLocally,mergeRemote} from '../ui/transfer-state.js';
+import {acknowledgeUpload,boundSession,deleteLocally,mergeRemote,sessionFits} from '../ui/transfer-state.js';
+
+test('the session from a partially saved account change cannot be sent to the old project',()=>{
+    const first={url:'https://first.invalid',email:'first@example.invalid'};
+    const next={url:'https://next.invalid',email:'next@example.invalid'};
+    const session=boundSession({user:{id:'fixture'}},next);
+    assert.equal(sessionFits(session,first),false);
+    assert.equal(sessionFits(session,{...next,email:first.email}),false);
+    assert.equal(sessionFits(session,next),true);
+});
 
 test('late acknowledgements and stale server rows cannot restore a deleted record',()=>{
     const remote={id:'fixture',text_content:'synthetic'};
