@@ -105,7 +105,7 @@ public class ActivityIntegrationTest {
         long deadline=SystemClock.elapsedRealtime()+8000;
         do {
             var root=automation.getRootInActiveWindow();
-            if(root!=null&&packageName.contentEquals(root.getPackageName()))return;
+            if(root!=null&&root.getPackageName()!=null&&packageName.contentEquals(root.getPackageName()))return;
             Thread.sleep(150);
         } while(SystemClock.elapsedRealtime()<deadline);
         fail("Foreground accessibility window was not " + packageName);

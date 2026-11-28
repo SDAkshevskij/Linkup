@@ -25,3 +25,18 @@ Considered a seven-day ribbon with separate calendar and a compact day navigator
 - **frontend-design and impeccable-text-review.** Compare date ribbon and day navigator. Render before/after and check compact, historical empty and desktop states. Keep the native calendar entry secondary.
 - **cross-app-tests-with-uiautomator.** Extend the existing emulator proof based on a real Settings transition, checking that moving to an empty day and returning to today preserves the collected row.
 - **differential-review and verification-before-completion.** Trace the local bridge, request identity and rendering; verify the final commit, screenshots and physical limitations.
+
+## Verification matrix
+
+| Scenario | Evidence |
+| --- | --- |
+| Open view across midnight, switch dates rapidly and request an archive during a delayed Qt-style callback | Three baseline RED failures followed by green regression checks. An obsolete response is delivered after returning to today. |
+| Stay on an explicit past day, retry a failed request and change time zone with a same-label request in flight | Controller tests cover duplicate refresh coalescing, superseded requests, retained same-day data and a successful retry. |
+| Clock gap at midnight, repeated or missing hours, a half-hour transition, a skipped calendar date and leap day | Named examples and 900 generated days/event placements in five time zones. Oracle uses numeric local Date construction and enumerated quarter-hour occupancy. The seed is recorded in the test. |
+| Empty archived day and return to today after real OS use | Native Android Settings/UsageEvents and Linux X11 fixture paths, SQLite, existing bridges and visible colored marks. Android uses an accessibility-window package wait around the real Settings transition. Local Mint 22.2 Xvfb passed all 12 tests. |
+| Small viewport, permission revoked and desktop | The Android suite captures local history, empty archive, calendar sheet and revoked access at 320 dp. The Qt fixture captures the same real row after the day round trip. |
+| History preservation and platform limits | Existing signed Android and Qt upgrade tests remain in CI. Physical clock/time-zone changes, regular Mint login and real cloud credentials require the owner checklist. Wayland collection remains unsupported. |
+
+## Differential review
+
+Reviewed the changed day parser and clipping boundary from Android Collector and Linux agent SQLite through `activity`, the shared renderer and the existing map action. Both native queries still take numeric bounds; the renderer applies a half-open interval to exclude the adjacent date. A superseded request cannot publish rows under another date. The date inputs do not create bridge actions, and application/device names are still escaped in HTML and attribute contexts. A regression asserts the escaped markup using synthetic names. Day navigation adds no network route or persistence. The existing user-triggered map handoff is unchanged. This review covers the diff and its immediate call sites.

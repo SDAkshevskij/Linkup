@@ -34,6 +34,14 @@ The mobile changes merged into main at `853d475`. [PR #3](https://github.com/SDA
 
 ## Current work and handoff
 
+The P0-A calendar follow-up is on `fix/activity-civil-day`, based on current main `6937e0b`. The view tracks today's local calendar date on refresh/resume and keeps an explicitly selected historical day open. Separate local boundaries and the elapsed-time ruler cover transitions at midnight and days with nonstandard lengths. A pending request clears figures when its interval changes, and stale responses can no longer replace the current date. The release and native storage paths are unchanged. [Design, test matrix and skill evidence](linkup-v0.2.0/ACTIVITY-DAY.md)
+
+Three regressions failed on the baseline and passed after the fix. From `linkup-v0.2.0/`, run `node --test tests/*.mjs` and the Xvfb command in ARCHITECTURE.md. The local JS suite and 12 isolated Mint tests passed. The Mint test used two live X11 windows, recorded data through the collector, opened an empty archive date and returned to the same Qt timeline. The [initial branch CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46151255608) records the first end-to-end run.
+
+Next action remains the owner checklist on a physical Android device and a normal Mint X11 login, including the disposable cloud account and signing-compatible installation. PR #6 tracks S1 independently. [Owner checklist](linkup-v0.2.0/P0-VERIFICATION.md) · [S1 draft](https://github.com/SDAkshevskij/Linkup/pull/6)
+
+## Merged P0 implementation
+
 The P0 implementation commit is `499a067` on `fix/activity-cloud-p0`, based on `bf1df8a`. E2EE and the local keyboard remain in P1. No production workflow was dispatched. [PR #5](https://github.com/SDAkshevskij/Linkup/pull/5) · [Implementation CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791) · [Verified main baseline](https://github.com/SDAkshevskij/Linkup/actions/runs/46047931490)
 
 ### Implementation and handoff

@@ -6,6 +6,7 @@
 - Paused native cloud Activity and required separate account-scoped consent for legacy Transfer. Restricted transport to HTTPS/WSS and public Supabase keys. The repository's Supabase schema blocks authenticated Activity inserts from old clients when applied and preserves existing rows. Added a credential-free Android connectivity probe.
 - Added end-to-end Activity coverage from real OS events to the visible timeline on Android API 35 and Linux Xvfb/Openbox, plus regression scenarios for consent and unsafe transport. Physical-device and disposable-account checks are listed separately. [P0 verification](linkup-v0.2.0/P0-VERIFICATION.md)
 - Verified data retention across Android signed upgrade and Linux packaged upgrade, including incompatible signing and Linux startup rollback. Verified the Activity policy change on disposable PostgreSQL. [Implementation CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791)
+- Updated Activity day navigation, calendar boundaries and ruler for midnight and clock changes. Opening another day clears unrelated figures while its local history loads. [Activity day verification](linkup-v0.2.0/ACTIVITY-DAY.md)
 
 ## v0.2.1 — published
 

@@ -128,6 +128,24 @@ test('an explicit past day stays fixed after midnight and stays usable after a f
     });
 });
 
+test('a timezone change replaces an in-flight day with the same label and different boundaries', async t => {
+    await withActivity(t, 'UTC', '2026-04-10T12:00:00Z', async ({requests, get, settle, finish}) => {
+        process.env.TZ = 'Europe/Moscow';
+        window.linkupActivityResume();
+        await settle();
+        assert.equal(get('actDate').value, '2026-04-10');
+        assert.equal(requests.length, 2);
+        assert.equal(requests[1].from, requests[0].from - 3 * 3_600_000);
+        const row={device_id:'fixture',device_name:'<&"',kind:'app',app:'"<fixture>',
+            start_ms:requests[1].from,end_ms:requests[1].from+62000};
+        await finish(requests[1],[row]);
+        await finish(requests[0]);
+        assert.equal(get('actApps').textContent, 1);
+        assert.match(get('actTimeline').innerHTML, /&quot;&lt;fixture&gt;/);
+        assert.doesNotMatch(get('actTimeline').innerHTML, /<fixture>/);
+    });
+});
+
 test('short, long and half-hour days have a ruler for their actual elapsed time', t => {
     const before = process.env.TZ;
     t.after(() => { if (before === undefined) delete process.env.TZ; else process.env.TZ = before; });

@@ -24,7 +24,9 @@ function updateDayControls(day, today) {
     $('actDate').max=today;
     if (!$('actDateDialog').open) $('actDate').value=day.key;
     $('actToday').hidden=current;
-    $('actNext').disabled=day.key>=today;
+    const next=$('actNext');
+    next.disabled=day.key>=today;
+    if (next.disabled && document.activeElement===next) $('actChooseDay').focus();
 }
 
 function pickDay(key) {
