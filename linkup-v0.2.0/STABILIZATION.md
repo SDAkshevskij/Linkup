@@ -29,6 +29,8 @@ Compared a desktop split pane with exclusive Settings panels against a continuou
 
 Reviewed the Transfer composer and picker entry, local/remote history and cleanup, Activity timeline and source controls, archive calendar, inspectors, consent, Settings, and both native update paths. Existing themed web scrollbars and Android Insets remain applicable. The OS picker, package installer and Usage Access screen retain native styling. Capture compact live/empty/denied Activity, landscape Activity, Settings in both orientations, actual IME, DNS failure, desktop Activity and desktop Settings. Before images are in the merged PR #7 artifacts.
 
+The first rendering review found that the landscape Activity controls displaced the chart below the viewport, and the completed DNS error was below the settings fold. The landscape layout places the day controls side by side and compresses time summary and health. The probe result scrolls into view. Instrumentation asserts these layout outcomes in addition to capturing images.
+
 ## Verification matrix
 
 | Scenario | Layer and evidence |
