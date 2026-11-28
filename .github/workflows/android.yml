@@ -11,6 +11,7 @@ on:
       - 'linkup-v0.2.0/version.properties'
       - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
+      - 'linkup-v0.2.0/schema.sql'
       - '.github/workflows/android.yml'
   pull_request:
     paths:
@@ -21,6 +22,7 @@ on:
       - 'linkup-v0.2.0/version.properties'
       - '.github/workflows/release.yml'
       - 'linkup-v0.2.0/tests/**'
+      - 'linkup-v0.2.0/schema.sql'
       - '.github/workflows/android.yml'
 permissions:
   contents: read
@@ -95,14 +97,33 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: PostgreSQL Activity upload policy test
+        run: |
+          sudo systemctl start postgresql.service
+          sql_fixtures=$(mktemp -d /tmp/linkup-policy.XXXXXX)
+          trap 'rm -r "$sql_fixtures"' EXIT
+          mkdir "$sql_fixtures/tests"
+          cp linkup-v0.2.0/schema.sql "$sql_fixtures/"
+          cp linkup-v0.2.0/tests/test_activity_policy.sql "$sql_fixtures/tests/"
+          chmod -R a+rX "$sql_fixtures"
+          sudo -u postgres psql -X -d postgres -f "$sql_fixtures/tests/test_activity_policy.sql"
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri
+          sudo apt-get install -y python3-pyqt5.qtwebengine python3-pyqt5.qtwebchannel xvfb xauth libgl1-mesa-dri openbox wmctrl x11-utils xprintidle
       - name: Linux agent and packaged upgrade tests
         working-directory: linkup-v0.2.0
         env:
           LIBGL_ALWAYS_SOFTWARE: "1"
           QTWEBENGINE_CHROMIUM_FLAGS: --disable-gpu
           LINKUP_TEST_WEBENGINE: '1'
+          LINKUP_TEST_X11: '1'
+          LINKUP_X11_SCREENSHOT: ${{ runner.temp }}/linkup-x11.png
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v
+      - name: X11 activity timeline
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Linux-Activity
+          path: ${{ runner.temp }}/linkup-x11.png
+          if-no-files-found: warn

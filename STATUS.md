@@ -9,7 +9,7 @@ Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merge
 - Downloaded `LinkUp-Android-debug` with `gh run download 46025692710 -R SDAkshevskij/Linkup -n LinkUp-Android-debug`. `apksigner verify --verbose app-debug.apk` validated the v2 signature. APK SHA-256 is `8987b31b5aa06eef1fc6fc87d0125af147f0a9fdddbd4c932fbb5a52f181109f`. [Tested APK](https://github.com/SDAkshevskij/Linkup/actions/runs/46025692710/artifacts/15211278532)
 - `python3 -m unittest discover -s tests -p 'test_agent.py'` ran locally from `linkup-v0.2.0/` and passed all 4 Linux-agent unit tests.
 
-## P0 release work
+## Released baseline and signing
 
 [PR #2](https://github.com/SDAkshevskij/Linkup/pull/2) merged into main at `be9590f`. The release workflow reads the 0.2.1 version from `version.properties`, builds the native packages, verifies APK signing and publishes from approved `main`. The app settings expose update checks on both platforms and separate cloud connection status for Supabase and the selected disk.
 
@@ -19,11 +19,11 @@ Historical validation for LinkUp v0.2.0. The Android build/lint fixes were merge
 - `LINKUP_TEST_WEBENGINE=1 LIBGL_ALWAYS_SOFTWARE=1 QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v` passed all 8 Linux tests on CI. Two packaged versions retained the Qt WebEngine IndexedDB item and blob, browser settings and session, native SQLite history and native session. The rollback test confirmed that failure to launch retains the old version. [Linux CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46035377985)
 - Android CI corrections included building instrumentation against each target, writing fixtures directly to IndexedDB and allowing Chromium to commit LocalStorage before stopping the baseline process. Linux CI uses Xvfb for a working Qt graphics context. [Instrumentation diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46033722811) · [WebView diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46035385606)
 - The owner reported a physical Android connection problem in 0.2.0. Device-specific cause and behavior with a real cloud account still need confirmation. The regression scenarios use synthetic data.
-- Production key setup and publication are pending the owner. GitHub reports no deployment environments configured. The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
+- GitHub has the `linkup-release` environment and v0.2.1 is published. Future releases require the applicable gates and owner authorization. [Published release](https://github.com/SDAkshevskij/Linkup/releases/tag/v0.2.1) The [release guide](linkup-v0.2.0/RELEASES.md) documents the safe debug transition and protected Environment contract.
 
-## P0 Android mobile UI
+## Merged Android mobile UI
 
-Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3)
+The mobile changes merged into main at `853d475`. [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3)
 
 - Apply system bar, cutout, and IME insets once at the native view container. Fit the compact composer and settings scroll container to this viewport.
 - Handle rotation with the active WebView. Reattach that WebView on in-process Activity recreation to preserve dialogs, draft files, scroll position, pending requests and transient credentials in memory.
@@ -32,21 +32,26 @@ Branch `fix/android-mobile-ui` starts at `be9590f`. [PR #3](https://github.com/S
 - `bash ../tools/test-android-upgrade.sh` passed independently on API 35. VersionCode 2 → 3 retained Android preferences, SQLite activity history, WebView settings and session, and IndexedDB history and attachment. The emulator rejected an incompatible APK signature. [Upgrade log](https://github.com/SDAkshevskij/Linkup/actions/runs/46043809149)
 - The diagnostic sequence fixed screenshot collection after test APK cleanup, exercised the physical emulator size so its simulated cutout reached the app, and checked reachability after ordinary page and form scrolling. The short landscape IME viewport uses a scrolling settings header. [Initial diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46038612229) · [Landscape IME diagnostic](https://github.com/SDAkshevskij/Linkup/actions/runs/46040961760)
 
-## Next action for Codex
+## Current work and handoff
 
-Review [PR #3](https://github.com/SDAkshevskij/Linkup/pull/3) with the emulator screenshots and signed-upgrade evidence. Verify system bars, cutouts and keyboard behavior on a physical Android phone. Production signing still depends on the owner configuring `linkup-release`, and the original cloud report needs a physical-device test with a dedicated account.
+The P0 implementation commit is `499a067` on `fix/activity-cloud-p0`, based on `bf1df8a`. E2EE and the local keyboard remain in P1. No production workflow was dispatched. [PR #5](https://github.com/SDAkshevskij/Linkup/pull/5) · [Implementation CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791) · [Verified main baseline](https://github.com/SDAkshevskij/Linkup/actions/runs/46047931490)
 
-## Owner physical-device finding — Activity reliability
+### Implementation and handoff
 
-The owner granted Android Usage Access but reports that no Activity statistics are visible on either the physical Android phone or Linux Mint laptop. Treat this as a P0 functional defect, not as a UI-only issue.
+- Android reconstructs the foreground state from recent OS UsageEvents and counts time from opt-in onward. It uses the same SQLite history for collection while the screen is open and for JobScheduler. Linux distinguishes idle, unavailable tooling, stale agents and Wayland, and supervises the collector process.
+- The Activity timeline reads local history directly. Source controls show permission and collector state. An optional inspector exposes local health and excludes app names and exact activity times from copied summaries.
+- Native Activity upload and automatic clipboard sharing are paused. Legacy cloud Transfer requires accounts to opt in separately from login. HTTPS/WSS and public Supabase credentials are enforced. The checked-in schema also removes INSERT access to Activity for old clients and preserves owner access to existing rows. Applying the schema to a live project remains a separate owner action.
+- Android settings expose an unauthenticated native network probe with separate DNS, TLS, timeout and HTTP outcomes. WebView sign-in reports auth and schema separately. The cause of the owner's phone failure remains unresolved until this path is exercised on that phone.
+- After PR review, run the physical checklist on the owner's Android and a Mint X11 login with an isolated Supabase account and synthetic text/file. Retain local history when installing a compatible test build and collect the redacted report if Android fails. [Verification checklist](linkup-v0.2.0/P0-VERIFICATION.md)
 
-Code review on 2026-11-28 found:
-- Android Collector.configure() resets the usage cursor and clears app/screen state when collection is enabled. Collector.collect() then depends on future UsageEvents boundaries; immediately after enabling there can be no row until a later foreground transition. Activity-page smoke tests only verify that the page/status opens; upgrade tests seed SQLite directly. There is no current end-to-end test proving real UsageEvents -> SQLite -> timeline.
-- Android background collection is a periodic JobScheduler job; the UI path does call collect() when Activity is queried, so local collection should not depend on Supabase. The physical-device failure therefore needs collector-level diagnostics rather than cloud assumptions.
-- Linux app.py launches agent.py, and autostart is also installed. However agent.sample() converts xprintidle/xprop/X11 failures into None without recording the cause. The UI can therefore show collection enabled while zero samples are being produced. Current Linux tests call emit() directly and do not prove active-window sampling.
-- Local Activity rows are read independently of Supabase. A Supabase timeout may prevent cloud synchronization but should not by itself explain an empty local timeline.
+### Reproducible verification
 
-Next executor must first make collection observable and prove real end-to-end events on Android and Linux, then redesign the Activity settings/permission UX according to AGENTS.md. Do not hide a broken collector behind prettier UI.
+- `node --test tests/*.mjs` passed all 13 cases on CI. `python3 -m unittest discover -s tests -p 'test_*.py'` passed 10 tests locally and skipped the Qt/X11 integration cases, which require the CI display setup.
+- `gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest` passed with 0 errors and 10 Lint warnings. The JVM unit-test task reported `NO-SOURCE`. [Android reports](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786/artifacts/15256574325)
+- `bash ../tools/test-android-mobile.sh` passed on API 35 at 320 dp. Gesture navigation passed 10 tests with the separate upgrade case skipped. Three-button navigation passed its layout/IME test. The offline UsageEvents test checked native JobScheduler, SQLite, rendered history, revocation and the recovery action. The WebView test exercised legacy opt-in, opt-out and local transfer against mocked responses. The native DNS error used the operating system resolver. [Reports and screenshots](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786/artifacts/15256574325)
+- `bash ../tools/test-android-upgrade.sh` passed with a disposable signing key and versions 2 → 3. It retained Android preferences, local SQLite history, WebView settings/session and IndexedDB history/blob. Android rejected the separately signed APK. [Upgrade run and APK](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786)
+- `LINKUP_TEST_WEBENGINE=1 LINKUP_TEST_X11=1 LIBGL_ALWAYS_SOFTWARE=1 QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v` passed all 12 tests. It rendered the real X11 sample after collector restart and verified packaged upgrade storage and rollback. [Linux timeline screenshot](https://github.com/SDAkshevskij/Linkup/actions/runs/46130070300/artifacts/15257372229)
+- `psql -X -d postgres -f tests/test_activity_policy.sql` passed on disposable PostgreSQL. The fixture verifies legacy upload denial, owner access and isolation from a second account. [Linux and PostgreSQL job](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791/job/140933061754)
 
 
 ## Product-quality directive — 2026-11-28

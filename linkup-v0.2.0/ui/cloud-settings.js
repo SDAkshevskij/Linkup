@@ -15,6 +15,7 @@ export async function cloudStep(service, operation, timeout = 12000) {
         ]);
     } catch (error) {
         let detail = error.message;
+        if (error instanceof SyntaxError) detail = 'Сервер вернул неожиданный ответ';
         if (error instanceof TypeError) detail = 'Сеть или сервер недоступны. Проверьте адрес и подключение';
         if (error instanceof CloudError) {
             const hints = {
@@ -27,7 +28,9 @@ export async function cloudStep(service, operation, timeout = 12000) {
             detail = hints[error.status] || 'Сервер отклонил запрос';
             detail += ' (HTTP ' + error.status + ')';
         }
-        throw new Error(service + ' · ' + detail);
+        const result=new Error(service + ' · ' + detail);
+        result.code=error instanceof CloudError?`http-${error.status}`:error instanceof TypeError?'webview-network':'request';
+        throw result;
     } finally {
         clearTimeout(timer);
     }
@@ -50,12 +53,13 @@ export async function signIn(config, password, update) {
         throw new Error('Supabase · Введите email и пароль');
     }
     const client = new Supabase(config.url, config.key, null, () => {});
-    await cloudStep('Supabase', signal => client.login(config.email, password, signal));
+    try{await cloudStep('Supabase', signal => client.login(config.email,password,signal));}
+    catch(error){error.phase='Вход';throw error;}
     update('Supabase · Проверяем схему…');
-    await cloudStep('Supabase', async signal => {
+    try{await cloudStep('Supabase', async signal => {
         const response = await client.request('linkup_items?select=id&limit=1', {signal});
         if (!Array.isArray(await response.json())) throw new Error('Не удалось проверить таблицу LinkUp');
-    });
+    });}catch(error){error.phase='Проверка таблицы';throw error;}
     return client.session;
 }
 

@@ -6,6 +6,7 @@ LinkUp is one connected personal application across Android and Linux Mint, with
 - Supabase is the chosen server for structured data, auth and synchronization; use Yandex Disk or Google Drive for heavy files.
 - Transfer: a shared stream for text, links and arbitrary files, with history, search/filter, copy/download, individual deletion, and cleanup by age (day/week/month etc.). Preserve offline operation and queued changes.
 - Activity: track the user's own device activity, foreground applications, usage duration, session history, device source and location history where permission allows. Combine both platforms into one day view; use colored time segments and separate device tracks, with drill-down into sessions.
+- Until the common E2EE channel passes its release gates, Activity stays on each device and automatic clipboard sharing is paused. Cloud login and disk setup leave Transfer local until the user explicitly enables legacy sharing for that account and project.
 - Design: bold, memorable and intentionally unconventional while remaining obvious to use. Do not default to generic forms, dashboard card grids or developer/admin UI simply because they are easy to implement. The executor is expected to invent stronger interaction/composition ideas and test them against usability. Dark/lime is the current identity, not a license to ship basic components. PRODUCT_QUALITY.md defines the acceptance bar.
 - Prefer free infrastructure during personal prototyping. Root is not required for baseline functionality.
 

@@ -6,12 +6,17 @@
 - `linkup-v0.2.0/ui/`: shared HTML/CSS/JS, IndexedDB transfer storage, cloud transports, daily activity UI.
 - `linkup-v0.2.0/schema.sql`: Supabase schema and RLS.
 - `linkup-v0.2.0/tests/`: JS logic/transport mock tests and Python Linux agent tests.
-- `.github/workflows/android.yml`: Android SDK 35 build, lint, JS tests, emulator smoke and signed upgrade tests, Linux Qt WebEngine upgrade tests, and diagnostic artifacts.
+- `.github/workflows/android.yml` builds and lints the APK, runs JS tests, Android emulator and signed upgrade tests, native X11 and Qt upgrade tests, and tests the Activity policy in PostgreSQL. It publishes diagnostic artifacts.
 - `.github/workflows/release.yml`: main-only release pipeline. Keeps release credentials in the protected environment and publishes the signed APK, the Linux installer and SHA-256 checksums after CI.
 - `linkup-v0.2.0/version.properties`: shared release name and numeric version code.
 
 ## Data flow
-Local-first: native SQLite activity storage and IndexedDB transfer storage; Supabase for authorized structured records and sync, Yandex Disk or Google Drive for binary attachments. Transfer uses foreground Realtime/polling and queued changes; activity background uploads are opt-in with a separate auth session. No continuous guarantee on Android scheduling. Location is periodic and optional, not a continuous route. Android system usage access and location permissions must be granted by the owner.
+
+Activity reads only the native SQLite event store. Android initializes foreground state from recent real UsageEvents and counts time from the opt-in cursor. It collects on opening the day view and in a periodic JobScheduler job. Linux samples idle time and the active X11 window from a single locked agent process. Its UI supervises the process and shows source health and Wayland limitations. Location remains optional on Android. Native Activity upload and refresh credentials are removed from the active collection path. Existing local and server history are left in place.
+
+Transfer uses IndexedDB for local text and files. Supabase login can validate access to the schema without starting synchronization. Legacy cloud Transfer requires a separate opt-in scoped to the account and project. The cloud path requires HTTPS/WSS and a public key. Local drafts created while opt-out stay local, and automatic expiry applies to local history. Clipboard input is manual. The common E2EE transport remains P1. The Android connectivity inspector compares the WebView login/schema stage with an unauthenticated native HTTPS probe. Reapplying the checked-in Supabase schema revokes the legacy Activity INSERT grant and policy and retains owner-scoped reads and deletes of historical rows.
+
+TASKS.md sets active priorities. Baseline smoke and upgrade evidence does not establish physical-device Activity or cloud reachability. [Test matrix and physical checks](linkup-v0.2.0/P0-VERIFICATION.md)
 
 ## Android window and UI lifecycle
 
@@ -27,8 +32,9 @@ From repository root:
 cd linkup-v0.2.0
 node --test tests/*.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
-LINKUP_TEST_WEBENGINE=1 QT_QPA_PLATFORM=offscreen QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu \
-  /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py'
+LINKUP_TEST_WEBENGINE=1 LINKUP_TEST_X11=1 LIBGL_ALWAYS_SOFTWARE=1 \
+  QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a \
+  /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v
 cd android
 gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
 # With an authorized connected test emulator:
@@ -37,7 +43,7 @@ gradle :app:connectedDebugAndroidTest
 bash ../tools/test-android-mobile.sh
 bash ../tools/test-android-upgrade.sh
 ```
-See nested README.md and ANDROID-CI.md for setup details. Verify current source and tool versions before changing the workflow. No real cloud tokens are required for mock/smoke tests.
+See nested README.md and ANDROID-CI.md for setup details. The PostgreSQL test runs `psql -X -d postgres -f tests/test_activity_policy.sql` on a fresh CI runner. Use a disposable cluster for local runs because the fixture sets up Supabase-compatible roles. No real cloud tokens are required for the automated tests.
 
 
 ## Verification philosophy
