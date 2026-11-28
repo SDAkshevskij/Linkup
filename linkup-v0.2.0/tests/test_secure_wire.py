@@ -15,25 +15,32 @@ N = bytes(range(24))
 HEADER = bytes.fromhex('01' + A.hex + R.hex + D.hex + '0000000000000007' + N.hex())
 
 
+def fixture():
+    return dict(line.split('=', 1) for line in Path(__file__).with_name(
+        'secure_wire_v1.properties').read_text(encoding='ascii').splitlines()
+        if line and not line.startswith('#'))
+
+
 class WireTests(unittest.TestCase):
     def test_literal_header(self):
         self.assertEqual(w.Header(A, R, D, 7, N).encode(), HEADER)
 
-    def test_split_literal(self):
+    def test_canonical_assemble_and_untrusted_split(self):
         cipher, signature = bytes(range(16)), bytes(range(64))
-        h, c, s = w.split(HEADER + cipher + signature)
-        self.assertEqual((h, c, s), (w.Header(A, R, D, 7, N), cipher, signature))
-        self.assertEqual(w.signature_input(h, c), b'LinkUp/record/v1\0' + HEADER + cipher)
+        h = w.Header(A, R, D, 7, N)
+        wire = w.assemble(h, cipher, signature)
+        self.assertEqual(wire, HEADER + cipher + signature)
+        self.assertEqual(w.split_untrusted(wire), (h, cipher, signature))
+        self.assertEqual(w.signature_input(h, cipher), b'LinkUp/record/v1\0' + HEADER + cipher)
 
     def test_native_known_answer_framing(self):
-        fixture = dict(line.split('=', 1) for line in Path(__file__).with_name(
-            'secure_wire_v1.properties').read_text(encoding='ascii').splitlines()
-            if line and not line.startswith('#'))
-        h, cipher, signature = w.split(bytes.fromhex(fixture['wire']))
-        self.assertEqual(h.encode(), bytes.fromhex(fixture['header']))
-        self.assertEqual(cipher, bytes.fromhex(fixture['ciphertext']))
-        self.assertEqual(signature, bytes.fromhex(fixture['signature']))
-        self.assertEqual(w.signature_input(h, cipher), bytes.fromhex(fixture['signature_input']))
+        f = fixture()
+        h, cipher, signature = w.split_untrusted(bytes.fromhex(f['wire']))
+        self.assertEqual(h.encode(), bytes.fromhex(f['header']))
+        self.assertEqual(cipher, bytes.fromhex(f['ciphertext']))
+        self.assertEqual(signature, bytes.fromhex(f['signature']))
+        self.assertEqual(w.signature_input(h, cipher), bytes.fromhex(f['signature_input']))
+        self.assertEqual(w.assemble(h, cipher, signature), bytes.fromhex(f['wire']))
 
     def test_invalid_framing(self):
         wire = HEADER + bytes(80)
@@ -46,7 +53,7 @@ class WireTests(unittest.TestCase):
         for item in cases:
             with self.subTest(length=len(item) if item is not None else -1):
                 with self.assertRaises(w.WireError):
-                    w.split(item)
+                    w.split_untrusted(item)
 
     def test_invalid_header_inputs(self):
         for args in [(uuid.UUID(int=0), R, D, 1, N), (A, R, D, True, N),
@@ -64,17 +71,35 @@ class WireTests(unittest.TestCase):
             nonce = rng.randbytes(24)
             cipher, sig = rng.randbytes(16 + rng.randrange(0, 512)), rng.randbytes(64)
             raw = b'\x01' + b''.join(x.int.to_bytes(16, 'big') for x in ids) + epoch.to_bytes(8, 'big') + nonce
-            h, c, s = w.split(raw + cipher + sig)
-            self.assertEqual(h, w.Header(*ids, epoch, nonce))
-            self.assertEqual((h.encode(), c, s), (raw, cipher, sig))
+            h = w.Header(*ids, epoch, nonce)
+            wire = w.assemble(h, cipher, sig)
+            parsed = w.split_untrusted(wire)
+            self.assertEqual(wire, raw + cipher + sig)
+            self.assertEqual(parsed, (h, cipher, sig))
 
     def test_maximum_and_signature_input_bounds(self):
         h = w.Header(A, R, D, 1, N)
         cipher = bytes(2**20 + 16)
-        self.assertEqual(w.split(h.encode() + cipher + bytes(64))[1], cipher)
+        signature = bytes(64)
+        self.assertEqual(w.split_untrusted(w.assemble(h, cipher, signature))[1], cipher)
         for bad in (b'', bytes(15), cipher + b'\0', bytearray(cipher)):
             with self.assertRaises(w.WireError):
                 w.signature_input(h, bad)
+            with self.assertRaises(w.WireError):
+                w.assemble(h, bad, signature)
+        for bad_signature in (b'', bytes(63), bytes(65), bytearray(64)):
+            with self.assertRaises(w.WireError):
+                w.assemble(h, bytes(16), bad_signature)
+
+    def test_signature_input_rejects_header_subclass(self):
+        class ForgedHeader(w.Header):
+            def encode(self):
+                return bytes(w.HEADER_SIZE)
+        forged = ForgedHeader(A, R, D, 7, N)
+        with self.assertRaises(w.WireError):
+            w.signature_input(forged, bytes(16))
+        with self.assertRaises(w.WireError):
+            w.assemble(forged, bytes(16), bytes(64))
 
 
 if __name__ == '__main__':
