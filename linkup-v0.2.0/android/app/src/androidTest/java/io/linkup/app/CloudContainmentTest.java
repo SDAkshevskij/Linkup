@@ -13,21 +13,39 @@ public class CloudContainmentTest {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitTrue(scenario,MobileUiTest.READY);
             js(scenario,"""
-                window.atomicTransfer='waiting';
-                import(location.origin+'/ui/db.js').then(async db=>{
-                    const key='fixture:'+crypto.randomUUID();
-                    const item={key,kind:'file',scope:'local'};
-                    try{
-                        await db.saveItems([{item,blob:new Blob(['synthetic'])},{item}]);
-                        window.atomicTransfer='accepted duplicate';
-                    }catch(error){
-                        const itemExists=Boolean(await db.get('items',key));
-                        const blobExists=Boolean(await db.get('blobs',key));
-                        window.atomicTransfer=[error?.name,itemExists,blobExists].join(':');
-                    }finally{await db.removeItem(key);}
-                }).catch(error=>{window.atomicTransfer=String(error)});true
+                const original=crypto.randomUUID;
+                window.conflictId=crypto.randomUUID();
+                crypto.randomUUID=()=>window.conflictId;
+                document.querySelector('#message').value='Synthetic transaction conflict';
+                const files=document.querySelector('#files'), transfer=new DataTransfer();
+                transfer.items.add(new File(['synthetic'],'collision.txt',{type:'text/plain'}));
+                files.files=transfer.files;
+                files.dispatchEvent(new Event('change'));
+                document.querySelector('#send').click();
+                crypto.randomUUID=original;
+                true
                 """);
-            waitTrue(scenario,"window.atomicTransfer==='ConstraintError:false:false'");
+            waitTrue(scenario,"document.querySelector('#toast').textContent.includes('Не удалось сохранить')"
+                    + " && !document.querySelector('#send').disabled"
+                    + " && document.querySelector('#message').value==='Synthetic transaction conflict'"
+                    + " && !document.querySelector('#staged').hidden");
+            js(scenario,"""
+                window.atomicTransfer='waiting';
+                const opening=indexedDB.open('linkup-v1',1);
+                opening.onerror=()=>window.atomicTransfer=String(opening.error);
+                opening.onsuccess=()=>{
+                    const connection=opening.result;
+                    const transaction=connection.transaction(['items','blobs'],'readonly');
+                    const item=transaction.objectStore('items').get('local:'+window.conflictId);
+                    const blob=transaction.objectStore('blobs').get('local:'+window.conflictId);
+                    transaction.oncomplete=()=>{
+                        window.atomicTransfer=[Boolean(item.result),Boolean(blob.result)].join(':');
+                        connection.close();
+                    };
+                };
+                true
+                """);
+            waitTrue(scenario,"window.atomicTransfer==='false:false'");
         }
     }
 

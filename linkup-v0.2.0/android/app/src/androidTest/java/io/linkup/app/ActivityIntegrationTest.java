@@ -67,9 +67,15 @@ public class ActivityIntegrationTest {
             waitTrue(scenario,settingsMark);
             MobileScreenshotTest.capture(scenario,"activity-local");
             MobileUiTest.orient(scenario,true);
-            waitTrue(scenario,settingsMark+" && document.documentElement.scrollWidth<=innerWidth"
-                    + " && document.querySelector('#actTimeline').getBoundingClientRect().top<innerHeight");
             MobileScreenshotTest.capture(scenario,"activity-landscape");
+            try{
+                waitTrue(scenario,settingsMark+" && document.documentElement.scrollWidth<=innerWidth"
+                        + " && document.querySelector('#actTimeline').getBoundingClientRect().top<innerHeight");
+            }catch(AssertionError failure){
+                throw new AssertionError("Landscape Activity geometry: "+js(scenario,
+                        "[innerWidth,innerHeight,document.documentElement.scrollWidth,"
+                        + "document.querySelector('#actTimeline').getBoundingClientRect().toJSON()]"),failure);
+            }
             MobileUiTest.orient(scenario,false);
             js(scenario,"document.querySelector('#actPrev').click();true");
             waitTrue(scenario,"document.querySelector('#actTimeline').textContent.includes('Нет записей за день')"
