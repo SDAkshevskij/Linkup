@@ -44,13 +44,17 @@ public class SmokeTest {
     }
 
     @Test public void queuesTwoSharedIntentsInOrderBeforeTheWebViewReadsThem() throws Exception {
-        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(MainActivity.class)) {
+        Context context = ApplicationProvider.getApplicationContext();
+        // ActivityScenario matches the current Intent after onNewIntent by action and MIME type.
+        // Use the same filter for initial launch and both subsequent system deliveries.
+        Intent shareRoute = new Intent(context, MainActivity.class)
+                .setAction(Intent.ACTION_SEND).setType("text/plain");
+        try (ActivityScenario<MainActivity> scenario = ActivityScenario.launch(shareRoute)) {
             waitTrue(scenario, MobileUiTest.READY);
             js(scenario,"window.resumeShares=window.linkupImportShare;window.linkupImportShare=()=>{};true");
             scenario.onActivity(activity -> {
                 for (String text : new String[]{"First synthetic share", "Second synthetic share"}) {
-                    activity.startActivity(new Intent(activity, MainActivity.class)
-                            .setAction(Intent.ACTION_SEND).setType("text/plain")
+                    activity.startActivity(new Intent(shareRoute)
                             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(Intent.EXTRA_TEXT,text));
                 }
             });
