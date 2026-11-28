@@ -10,7 +10,9 @@ final class Collector extends SQLiteOpenHelper {
  JSONObject status() throws JSONException {
   boolean enabled=p.getBoolean("enabled",false), access=allowed(), location=p.getBoolean("location",false);
   return new JSONObject().put("platform","android").put("enabled",enabled).put("usageAccess",access)
-      .put("location",location).put("locationAccess",locationAllowed()).put("cloud",false)
+      .put("location",location).put("locationAccess",locationAllowed())
+      .put("backgroundLocationAccess",c.checkSelfPermission(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
+          ==PackageManager.PERMISSION_GRANTED).put("cloud",false)
       .put("warning",enabled&&!access?"Нужен доступ к статистике приложений"
           :location&&!locationAllowed()?"Нужен доступ к геолокации":"")
       .put("error",p.getString("collect_error",""));

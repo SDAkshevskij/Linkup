@@ -67,6 +67,8 @@ public class ActivityIntegrationTest {
             js(scenario,"document.querySelector('#activityInspector').close();document.querySelector('#actRefresh').click();true");
             waitTrue(scenario,"document.querySelector('#activityStatus').textContent.includes('доступ')");
             MobileScreenshotTest.capture(scenario,"activity-denied");
+            js(scenario,"document.querySelector('#actSettings').click();true");
+            waitTrue(scenario,"!document.querySelector('#trackPermission').hidden");
         }finally{
             shell(ops+"default");
             if(!"1".equals(airplane))shell("cmd connectivity airplane-mode disable");

@@ -71,7 +71,8 @@
 .source-sheet .dialog-head { margin-bottom:14px; }
 .source-rail { border-block:1px solid var(--line); }
 .source-switch { width:100%; min-height:52px; display:flex; align-items:center; justify-content:space-between; gap:12px; text-align:left; padding:8px 4px; }
-.source-switch + .source-switch { border-top:1px solid var(--line); }
+#trackLocation { border-top:1px solid var(--line); }
+.source-permission { margin:0 4px 8px; }
 .source-switch span { display:grid; gap:4px; min-width:0; overflow-wrap:anywhere; }
 .source-switch i { width:34px; height:19px; flex:none; border:1px solid #566452; border-radius:20px; padding:3px; }
 .source-switch i::before { content:""; display:block; width:11px; height:11px; border-radius:50%; background:#8a9587; transition:transform .15s; }

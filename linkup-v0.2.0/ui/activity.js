@@ -32,11 +32,17 @@ function render(){const [a,b]=bounds(),devs=new Map(data.map(r=>[r.device_id,r.d
 const tracks=[...new Map(rows.map(r=>[r.device_id,r.device_name])).entries()];$('actTimeline').innerHTML=(tracks.length?tracks:[['','Нет активности']]).map(([id,name])=>`<div class="track-name">${esc(name)}</div><div class="act-track">${Array.from({length:24},(_,i)=>`<span class="hour-cell" style="left:${i/24*100}%;width:${100/24}%"></span>`).join('')}${sessions.filter(r=>r.device_id===id).map(r=>`<button class="time-dot" title="${esc(r.label||r.app)} · ${time(r.start_ms)}–${time(r.end_ms)}" style="left:${100*(r.start_ms-a)/(b-a)}%;width:${Math.max(.22,100*(r.end_ms-r.start_ms)/(b-a))}%;background:${color(r.app||r.label)}" data-start="${r.start_ms}" data-device="${esc(id)}"></button>`).join('')}</div>`).join('');$('actTimeline').querySelectorAll('button').forEach(el=>el.onclick=()=>{$('actSelected').textContent=el.title;});
 $('actDevices').innerHTML=tracks.map(([id,name])=>`<div class="activity-row"><span>${esc(name)}</span><b>${duration(intervalsUnion(sessions.filter(r=>r.device_id===id)))}</b></div>`).join('');const loc=rows.filter(r=>r.kind==='location'&&Number.isFinite(r.lat)&&Number.isFinite(r.lon)).sort((x,y)=>y.start_ms-x.start_ms);$('actPlaces').innerHTML=loc.map(r=>`<div class="activity-row"><span><b>${esc(time(r.start_ms))}</b> · ${esc(r.device_name)}<small>${r.lat.toFixed(5)}, ${r.lon.toFixed(5)} · ±${Math.round(r.accuracy||0)} м</small></span><button class="secondary" data-map="${r.lat},${r.lon}">Карта ↗</button></div>`).join('')||'<div class="act-empty">Нет точек местоположения</div>';$('actPlaces').querySelectorAll('button').forEach(el=>el.onclick=()=>{const [lat,lon]=el.dataset.map.split(',');native('openUrl',{url:`https://www.openstreetmap.org/?mlat=${lat}&mlon=${lon}#map=17/${lat}/${lon}`}).catch(e=>alert(e.message));});$('actSessions').innerHTML=grouped.sort((x,y)=>y.start_ms-x.start_ms).map(r=>`<div class="activity-row"><span><i style="background:${color(r.app||r.label)}"></i>${esc(r.label||r.app)}<small>${esc(r.device_name)} · ${time(r.start_ms)}–${time(r.end_ms)}</small></span><b>${duration(r.end_ms-r.start_ms)}</b></div>`).join('');}
 function sourceControls(){
+    const android=status.platform==='android';
     $('trackEnabled').setAttribute('aria-pressed',String(!!status.enabled));
     $('trackAppState').textContent=status.enabled?(status.warning||'Сбор включён'):'Выключено';
-    $('trackLocation').hidden=status.platform!=='android';
+    $('trackPermission').hidden=!(android&&status.enabled&&!status.usageAccess);
+    $('trackLocation').hidden=!android;
     $('trackLocation').setAttribute('aria-pressed',String(!!status.location));
-    $('trackLocationState').textContent=!status.location?'Выключено':status.locationAccess?'Сбор включён':'Ожидает разрешения';
+    $('trackLocationState').textContent=!status.location?'Выключено':!status.enabled?'Включите сбор приложений'
+        :!status.locationAccess?'Ожидает разрешения':status.backgroundLocationAccess?'Сбор включён':'Только при открытом LinkUp';
+    const permission=$('trackLocationPermission');
+    permission.hidden=!(android&&status.enabled&&status.location&&!status.backgroundLocationAccess);
+    permission.textContent=status.locationAccess?'Разрешить доступ в фоне':'Разрешить местоположение';
 }
 
 async function readSources(){
@@ -56,7 +62,7 @@ async function setSource(source){
         await readSources();
         if(requested&&status.platform==='android'){
             if(source==='enabled'&&!status.usageAccess)await native('permission');
-            if(source==='location'&&!status.locationAccess)await native('locationPermission');
+            if(source==='location'&&status.enabled&&!status.locationAccess)await native('locationPermission');
         }
         $('trackInfo').textContent='';
         refresh();
@@ -67,6 +73,7 @@ async function setSource(source){
 
 const factLabels={
     platform:'Платформа', enabled:'Сбор', usageAccess:'Доступ', locationAccess:'Доступ к геолокации',
+    backgroundLocationAccess:'Геолокация в фоне',
     local_count:'Локальные события', last_event:'Последняя запись', last_attempt:'Последняя попытка',
     last_success:'Последний успешный сбор', cursor:'Курсор', last_boundary:'Последний переход',
     last_app:'Последнее приложение', last_job:'Последняя фоновая задача', job_scheduled:'Фоновая задача', job_error:'Планировщик',
@@ -126,6 +133,12 @@ export function initActivity(getConfig){
     };
     $('trackEnabled').onclick=()=>setSource('enabled');
     $('trackLocation').onclick=()=>setSource('location');
+    $('trackPermission').onclick=() => native('permission').catch(() => {
+        $('trackInfo').textContent='Не удалось открыть системный доступ';
+    });
+    $('trackLocationPermission').onclick=() => native('locationPermission').catch(() => {
+        $('trackInfo').textContent='Не удалось открыть разрешения местоположения';
+    });
     $('trackErase').onclick=async()=>{
         if(!confirm('Остановить сбор и удалить локальную историю активности?'))return;
         try{await native('eraseActivity');await readSources();refresh();}
