@@ -54,7 +54,7 @@ public class SmokeTest {
             js(scenario,"window.resumeShares=window.linkupImportShare;window.linkupImportShare=()=>{};true");
             scenario.onActivity(activity -> {
                 for (String text : new String[]{"First synthetic share", "Second synthetic share"}) {
-                    activity.startActivity(new Intent(shareRoute)
+                    activity.startActivity(new Intent(activity.getIntent())
                             .addFlags(Intent.FLAG_ACTIVITY_SINGLE_TOP).putExtra(Intent.EXTRA_TEXT,text));
                 }
             });
