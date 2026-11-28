@@ -49,7 +49,9 @@ def probe(window_dir):
     window=None
     try:
         spawn('openbox')
-        wait_for(lambda:'Openbox' in agent.cmd('wmctrl','-m'),'Openbox')
+        wait_for(lambda:'Openbox' in agent.cmd('wmctrl','-m') and
+                 '_NET_CLIENT_LIST(WINDOW)' in agent.cmd('xprop','-root','_NET_CLIENT_LIST'),
+                 'Openbox with an initialized client list')
 
         def open_client(name):
             marker=window_dir/name
@@ -60,9 +62,14 @@ def probe(window_dir):
                 if not marker.exists() or not (identifier:=marker.read_text()):
                     return None
                 registered=agent.cmd('xprop','-root','_NET_CLIENT_LIST').split('#')[-1]
-                return identifier if int(identifier,16) in {
+                clients={
                     int(token,16) for token in registered.replace(',',' ').split()
-                    if token.startswith('0x')} else None
+                    if token.startswith('0x')}
+                if int(identifier,16) not in clients:
+                    return None
+                if 'Map State: IsViewable' in agent.cmd('xwininfo','-id',identifier):
+                    return identifier
+                return None
             return wait_for(managed_window,f'an exposed and managed window for {name}')
 
         one=open_client('LinkUpFixtureOne')
@@ -96,7 +103,20 @@ def probe(window_dir):
             def capture_and_quit():
                 if screenshot:=os.environ.get('LINKUP_X11_SCREENSHOT'):
                     result['screenshot']=window.grab().save(screenshot)
-                application.quit()
+                    def capture_settings(opened):
+                        result['settings_open']=opened
+                        def completed():
+                            target=Path(screenshot).with_name("linkup-settings.png")
+                            result['settings_screenshot']=window.grab().save(str(target))
+                            application.quit()
+                        QTimer.singleShot(250,completed)
+                    window.page.runJavaScript("""(() => {
+                        document.querySelector('#settings').click();
+                        return document.querySelector('#settingsDialog').open &&
+                            document.querySelector('#settingsDialog').scrollWidth<=innerWidth;
+                    })()""",capture_settings)
+                else:
+                    application.quit()
 
             def measured(value):
                 if isinstance(value,dict):
@@ -132,6 +152,7 @@ def probe(window_dir):
             application.exec_()
             assert result.get('stage')=='complete', f'Qt timeline did not show the recorded row after date navigation: {result}'
             assert result.get('screenshot',True), 'screenshot could not be saved'
+            assert result.get('settings_open',True) and result.get('settings_screenshot',True), 'Qt settings screenshot failed'
             sip.delete(window.view)
             window.close()
             window=None
@@ -153,7 +174,6 @@ if __name__=='__main__':
         with tempfile.TemporaryDirectory() as window_dir:
             probe(Path(window_dir))
     elif sys.argv[1:2]==['window']:
-        from PyQt5.QtTest import QTest
         from PyQt5.QtWidgets import QApplication, QWidget
         name,marker=sys.argv[2:4]
         application=QApplication([name,'-name',name])
@@ -162,7 +182,5 @@ if __name__=='__main__':
         client.setWindowTitle(name)
         client.resize(240,140)
         client.show()
-        if not QTest.qWaitForWindowExposed(client,5000):
-            sys.exit('X11 fixture window was not exposed')
         Path(marker).write_text(hex(int(client.winId())))
         sys.exit(application.exec_())

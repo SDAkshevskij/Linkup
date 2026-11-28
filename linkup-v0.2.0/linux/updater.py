@@ -113,17 +113,23 @@ def latest(installed):
 def download(release, destination, cancelled, progress):
     digest = hashlib.sha256()
     size = 0
+    created = False
     try:
-        with request(release.url) as response, destination.open("xb") as output:
-            for block in read_chunks(response, release.size, cancelled, 180):
-                digest.update(block)
-                output.write(block)
-                size += len(block)
-                progress(100 * size // release.size)
+        with destination.open("xb") as output:
+            created = True
+            with request(release.url) as response:
+                for block in read_chunks(response, release.size, cancelled, 180):
+                    digest.update(block)
+                    output.write(block)
+                    size += len(block)
+                    progress(100 * size // release.size)
+        if cancelled():
+            raise InterruptedError("Загрузка отменена")
         if size != release.size or not hmac.compare_digest(digest.hexdigest(), release.digest):
             raise ValueError("Контрольная сумма пакета не совпадает")
     except Exception:
-        destination.unlink(missing_ok=True)
+        if created:
+            destination.unlink(missing_ok=True)
         raise
 
 

@@ -116,3 +116,32 @@
   .act-scope { justify-self:stretch; }
   .act-scope #actDevice { flex:1; width:0; max-width:none; }
 }
+
+.settings-index {
+    display: grid;
+    grid-template-columns: repeat(3,minmax(0,1fr));
+    border-block: 1px solid var(--line);
+    margin: 0 0 12px;
+}
+.settings-index button { min-height: 44px; color: var(--accent); font-size: 12px; padding-inline: 4px; }
+.settings-index button + button { border-left: 1px solid var(--line); }
+.settings-index button:focus-visible { outline: 2px solid var(--accent); outline-offset: -3px; }
+.settings-section { padding-block: 8px 16px; }
+.settings-section + .settings-section { border-top: 1px solid var(--line); }
+.settings-section h3 { margin: 0 0 14px; font-size: 18px; letter-spacing: -.02em; }
+.settings-section:focus { outline: none; }
+.settings-account-state { display:flex; align-items:center; justify-content:space-between; gap:10px; }
+.settings-account-state #logout { color:var(--muted); flex:none; padding-inline:8px; min-height:44px; }
+.settings-release { border-top:1px solid var(--line); padding-top:12px; }
+@media (min-width: 681px) and (min-height: 420px) {
+    .settings-pair { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:10px; }
+    .settings-pair input { min-width:0; width:100%; }
+}
+@media (orientation: landscape) and (max-height: 540px) {
+    .act-controls { grid-template-columns:minmax(0, 1fr) minmax(0, 1fr); margin:8px 0; }
+    .activity-health { margin:4px 0; padding:2px 0; }
+    .activity-view { padding-block-start:8px; }
+    .act-total { display:flex; gap:12px; align-items:baseline; margin:8px 0 2px; }
+    .act-total strong { font-size:30px; }
+    .act-track { height:32px; }
+}

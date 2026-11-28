@@ -55,6 +55,10 @@ jobs:
       - name: Build and lint
         working-directory: linkup-v0.2.0/android
         run: gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
+      - name: Download published v0.2.1 upgrade fixtures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash linkup-v0.2.0/tools/fetch-release-baseline.sh
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -92,11 +96,22 @@ jobs:
           name: LinkUp-Android-debug
           path: linkup-v0.2.0/android/app/build/outputs/apk/debug/app-debug.apk
           if-no-files-found: error
+      - name: v0.2.2 upgrade candidate with disposable Android signing
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LinkUp-v0.2.2-test-signed-candidate
+          path: linkup-v0.2.0/android/app/build/upgrade-candidate/
+          if-no-files-found: error
   linux:
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+      - name: Download published v0.2.1 upgrade fixtures
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: bash linkup-v0.2.0/tools/fetch-release-baseline.sh
       - name: PostgreSQL Activity upload policy test
         run: |
           sudo systemctl start postgresql.service
@@ -119,11 +134,14 @@ jobs:
           LINKUP_TEST_WEBENGINE: '1'
           LINKUP_TEST_X11: '1'
           LINKUP_X11_SCREENSHOT: ${{ runner.temp }}/linkup-x11.png
+          LINKUP_PUBLISHED_LINUX_BASELINE: ${{ runner.temp }}/linkup-v0.2.1/LinkUp-Linux-3.zip
         run: xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v
       - name: X11 activity timeline
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: Linux-Activity
-          path: ${{ runner.temp }}/linkup-x11.png
+          path: |
+            ${{ runner.temp }}/linkup-x11.png
+            ${{ runner.temp }}/linkup-settings.png
           if-no-files-found: warn

@@ -43,9 +43,10 @@ test('Yandex token and Supabase binding failures identify the service', async t 
         assert.ok(opts.signal);
         return Response.json({user:{uid:'123'}}, {status:diskStatus});
     });
-    const client = {session:{user:{id:'synthetic'}}, request:async (path, opts) => {
+    const client = {session:{user:{id:'synthetic'}}, request:async (path, opts, consume) => {
         assert.ok(opts.signal);
-        return Response.json([{drive_identity:binding}]);
+        const response=Response.json([{drive_identity:binding}]);
+        return consume?consume(response):response;
     }};
     const steps = [];
     const connect = () => verifyDisk(client, new YandexDrive('id'), 'yandex', 'fake', s=>steps.push(s));

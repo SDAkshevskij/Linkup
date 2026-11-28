@@ -1,4 +1,4 @@
-import {clipToDay, dateKey, dayScale, localDay, stepDay} from './activity-day.js';
+import {clipToDay, dateKey, dayScale, localDay, stepDay, uniqueActivity, withActivityDeadline} from './activity-day.js';
 
 const $=id=>document.getElementById(id);
 let bridgeReady;export function native(action,args={}){return new Promise((resolve,reject)=>{const done=v=>{try{const r=JSON.parse(v);if(r.error)reject(Error(r.error));else resolve(r.value);}catch(e){reject(e)}};if(window.LinkUpNative){try{done(LinkUpNative.call(action,JSON.stringify(args)))}catch(e){reject(e)}return;}if(window.qt&&window.QWebChannel){bridgeReady??=new Promise(r=>new QWebChannel(qt.webChannelTransport,c=>r(c.objects.native)));bridgeReady.then(b=>b.call(action,JSON.stringify(args),done),reject);return;}reject(Error('Нативный агент недоступен'));});}
@@ -66,11 +66,11 @@ async function refresh({retry=false}={}){
 
     const {from,to}=day;
     try {
-        const local=await native('activity',{from,to});
+        const local=await withActivityDeadline(()=>native('activity',{from,to}));
         if (revision!==tick) return;
         if (!local?.status || !Array.isArray(local.rows)) throw Error('Invalid activity response');
         status=local.status;
-        data=clipToDay(local.rows,day);
+        data=uniqueActivity(clipToDay(local.rows,day));
         phase='ready';
         hasResult=true;
         const localState=document.createElement('strong');
@@ -110,8 +110,13 @@ function render(){
     const apps=new Map();
     for (const row of sessions) {
         const key=row.app||row.label||'Неизвестно';
-        if (!apps.has(key)) apps.set(key,{name:row.label||key,ms:0});
-        apps.get(key).ms+=row.end_ms-row.start_ms;
+        if (!apps.has(key)) apps.set(key,{name:row.label||key,devices:new Map(),ms:0});
+        const {devices}=apps.get(key);
+        if (!devices.has(row.device_id)) devices.set(row.device_id,[]);
+        devices.get(row.device_id).push(row);
+    }
+    for (const app of apps.values()) {
+        app.ms=[...app.devices.values()].reduce((total,rows)=>total+intervalsUnion(rows),0);
     }
     const sorted=[...apps].sort((a,b)=>b[1].ms-a[1].ms);
     const grouped=[];

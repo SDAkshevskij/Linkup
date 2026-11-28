@@ -70,7 +70,7 @@ cd "$project/android"
 result=0
 gradle :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.requireCutout=true || result=$?
 cp -R app/build/outputs/androidTest-results/connected/debug "$diagnostics/gesture/results" || true
-screens_gesture=(portrait-settings landscape-settings portrait-keyboard landscape-keyboard activity-local activity-archive activity-calendar activity-denied)
+screens_gesture=(portrait-settings landscape-settings portrait-keyboard landscape-keyboard activity-local activity-landscape activity-archive activity-calendar activity-denied settings-dns-error)
 if [[ $result -ne 0 ]]; then
   collect_screens gesture "${screens_gesture[@]}" || true
   exit "$result"

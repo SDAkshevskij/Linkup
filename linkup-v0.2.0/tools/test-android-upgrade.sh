@@ -44,10 +44,6 @@ test_sources=app/src/androidTest/java/io/linkup/app
 # Build each test APK against its target so target-provided libraries match that version.
 cp "$project/android/$test_sources/"{WebViewProbe,UpgradeTest}.java "$legacy/$test_sources/"
 (
-  cd "$legacy"
-  gradle :app:assembleDebug :app:assembleDebugAndroidTest
-)
-(
   cd "$project/android"
   gradle :app:assembleRelease :app:assembleDebugAndroidTest
 )
@@ -61,6 +57,12 @@ sign() {
   "$signer" verify "$2"
 }
 old="$legacy/app/build/outputs/apk/debug/app-debug.apk"
+if [[ $code == 4 ]]; then
+  [[ $previous == 3 ]]
+  old="${RUNNER_TEMP:?}/linkup-v0.2.1/LinkUp-Android-3.apk"
+  printf '%s  %s\n' 7ec9094e3f256734252541d1591c8dce06dcec5256a3d409e61c0c333cc6e70b "$old" | sha256sum -c
+  "$signer" verify "$old"
+fi
 new="$project/android/app/build/outputs/apk/release/app-release-unsigned.apk"
 tests=app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 sign test "$work/old.apk" "$old"
@@ -69,6 +71,16 @@ LINKUP_KEYSTORE_BASE64="$(base64 -w0 "$work/test.p12")" \
   bash "$project/tools/prepare-release.sh"
 released="$work/linkup-release/LinkUp-Android-$code.apk"
 sign wrong "$work/wrong.apk" "$new"
+if [[ $code == 4 ]]; then
+  mkdir "$work/update-fixtures"
+  cp "$released" "$work/update-fixtures/candidate.apk"
+  cp "$work/wrong.apk" "$work/update-fixtures/"
+  printf "\nandroid.sourceSets.androidTest.assets.srcDir('%s')\n" "$work/update-fixtures" >> "$legacy/app/build.gradle"
+fi
+(
+  cd "$legacy"
+  gradle :app:assembleDebug :app:assembleDebugAndroidTest
+)
 sign test "$work/old-tests.apk" "$legacy/$tests"
 sign test "$work/new-tests.apk" "$project/android/$tests"
 adb uninstall io.linkup.app.test >/dev/null 2>&1 || true
@@ -76,13 +88,16 @@ adb uninstall io.linkup.app >/dev/null 2>&1 || true
 adb install "$work/old.apk"
 adb install -t "$work/old-tests.apk"
 instrument() {
-  adb shell am instrument -w -e class io.linkup.app.UpgradeTest -e upgradePhase "$1" -e expectedVersion "$2" \
+  local method=retainsAppDataAcrossSignedUpgrade
+  if [[ $1 == validate ]]; then method=builtInUpdaterAcceptsOnlyTheMatchingSignedCandidate; fi
+  adb shell am instrument -w -e class "io.linkup.app.UpgradeTest#$method" -e upgradePhase "$1" -e expectedVersion "$2" \
     io.linkup.app.test/androidx.test.runner.AndroidJUnitRunner | tee "$work/$1.log"
   tr -d '\r' < "$work/$1.log" | grep -Fx 'OK (1 test)'
 }
 instrument seed "$previous"
 # Confirm that the old WebView profile has persisted the fixture after its first process exits.
 instrument verify "$previous"
+if [[ $code == 4 ]]; then instrument validate "$previous"; fi
 if result=$(adb install -r "$work/wrong.apk" 2>&1); then
   echo 'Android accepted an incompatible signature' >&2
   exit 1
@@ -92,3 +107,8 @@ printf '%s\n' "$result"
 adb install -r "$released"
 adb install -r -t "$work/new-tests.apk"
 instrument verify "$code"
+if [[ $code == 4 ]]; then
+  out="$project/android/app/build/upgrade-candidate"
+  mkdir -p "$out"
+  cp "$work/linkup-release/"{LinkUp-Android-4.apk,LinkUp-Linux-4.zip,SHA256SUMS} "$out/"
+fi

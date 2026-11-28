@@ -16,6 +16,10 @@ Activity reads only the native SQLite event store. Android initializes foregroun
 
 Transfer uses IndexedDB for local text and files. Supabase login can validate access to the schema without starting synchronization. Legacy cloud Transfer requires a separate opt-in scoped to the account and project. The cloud path requires HTTPS/WSS and a public key. Local drafts created while opt-out stay local, and automatic expiry applies to local history. Clipboard input is manual. The common E2EE transport remains P1. The Android connectivity inspector compares the WebView login/schema stage with an unauthenticated native HTTPS probe. Reapplying the checked-in Supabase schema revokes the legacy Activity INSERT grant and policy and retains owner-scoped reads and deletes of historical rows.
 
+A Transfer submission snapshots its account and commits metadata and attachments in a single IndexedDB transaction. Reconciliation, user deletion and cache writes recheck the current record inside a write transaction. Connection and per-request cancellation remain attached through response-body consumption. Android Share intents are immutable, individually acknowledged batches within the retained WebView session.
+
+Android compares wall time with elapsed real time before extending its usage cursor. Linux checks consecutive samples against an elapsed clock and commits an event only for the current consent revision. The shared view deduplicates exact observations within devices and applies a local query deadline.
+
 TASKS.md sets active priorities. Baseline smoke and upgrade evidence does not establish physical-device Activity or cloud reachability. [Test matrix and physical checks](linkup-v0.2.0/P0-VERIFICATION.md)
 
 ## Android window and UI lifecycle

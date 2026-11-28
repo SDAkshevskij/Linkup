@@ -2,11 +2,26 @@ package io.linkup.app;
 
 import android.app.job.*;
 import android.content.*;
+import android.os.Handler;
+import android.os.Looper;
 import java.util.concurrent.*;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class CollectJob extends JobService {
  static final int ID=1001;
- static final ExecutorService EXEC=Executors.newSingleThreadExecutor();
+ private static final ExecutorService EXEC=Executors.newSingleThreadExecutor();
+ private static final AtomicBoolean FOREGROUND_PENDING=new AtomicBoolean();
+ private final Handler main=new Handler(Looper.getMainLooper());
+ private Future<?> scheduled;
+ private JobParameters current;
+
+ static void requestForeground(Context context){
+  if(!FOREGROUND_PENDING.compareAndSet(false,true))return;
+  Context app=context.getApplicationContext();
+  EXEC.execute(()->{
+   try{run(app);}finally{FOREGROUND_PENDING.set(false);}
+  });
+ }
  static void schedule(Context context){
   JobScheduler scheduler=context.getSystemService(JobScheduler.class);
   try(Collector collector=new Collector(context)){
@@ -20,14 +35,31 @@ public class CollectJob extends JobService {
  }
  static void run(Context context){
   try(Collector collector=new Collector(context)){
-   try{collector.collect();collector.collectLocation();}
+   try{collector.collect();if(!Thread.currentThread().isInterrupted())collector.collectLocation();}
    catch(Exception failure){collector.p.edit().putString("collect_error","Не удалось считать данные Android").apply();}
   }
  }
  @Override public boolean onStartJob(JobParameters params){
   getSharedPreferences("activity",0).edit().putLong("last_job",System.currentTimeMillis()).apply();
-  EXEC.execute(()->{try{run(this);}finally{jobFinished(params,false);}});
+  current=params;
+  scheduled=EXEC.submit(()->{
+   try{run(this);}finally{
+    main.post(()->{
+     if(current!=params)return;
+     current=null;
+     scheduled=null;
+     jobFinished(params,false);
+    });
+   }
+  });
   return true;
  }
- @Override public boolean onStopJob(JobParameters params){return true;}
+ @Override public boolean onStopJob(JobParameters params){
+  if(current==params){
+   current=null;
+   if(scheduled!=null)scheduled.cancel(true);
+   scheduled=null;
+  }
+  return true;
+ }
 }

@@ -22,6 +22,7 @@ export async function cloudStep(service, operation, timeout = 12000) {
                 400: 'Запрос отклонён. Проверьте параметры и данные входа',
                 401: 'Проверьте ключ, данные входа или срок действия токена',
                 403: 'Доступ запрещён. Проверьте права доступа',
+                408: 'Сервер не ответил вовремя',
                 404: 'Ресурс не найден. Проверьте адрес и схему проекта',
                 429: 'Слишком много запросов. Повторите позже'
             };
@@ -57,8 +58,8 @@ export async function signIn(config, password, update) {
     catch(error){error.phase='Вход';throw error;}
     update('Supabase · Проверяем схему…');
     try{await cloudStep('Supabase', async signal => {
-        const response = await client.request('linkup_items?select=id&limit=1', {signal});
-        if (!Array.isArray(await response.json())) throw new Error('Не удалось проверить таблицу LinkUp');
+        const rows = await client.request('linkup_items?select=id&limit=1', {signal}, response => response.json());
+        if (!Array.isArray(rows)) throw new Error('Не удалось проверить таблицу LinkUp');
     });}catch(error){error.phase='Проверка таблицы';throw error;}
     return client.session;
 }
@@ -70,8 +71,7 @@ export async function verifyDisk(client, disk, provider, token, update) {
     const identity = await cloudStep(service, async signal => {
         await disk.connect(token);
         if (provider === 'yandex') return disk.identity(signal);
-        const response = await disk.request('https://www.googleapis.com/drive/v3/about?fields=user(permissionId)', {signal});
-        const data = await response.json();
+        const data = await disk.request('https://www.googleapis.com/drive/v3/about?fields=user(permissionId)', {signal}, response => response.json());
         if (!data.user?.permissionId) throw new Error('Не удалось определить аккаунт');
         return disk.clientId + ':' + data.user.permissionId;
     });
@@ -81,8 +81,7 @@ export async function verifyDisk(client, disk, provider, token, update) {
             signal, method: 'POST', headers: {Prefer: 'resolution=ignore-duplicates,return=minimal'},
             body: JSON.stringify({user_id: client.session.user.id, provider, drive_identity: identity})
         });
-        const response = await client.request('linkup_disk_accounts?select=drive_identity&provider=eq.' + provider, {signal});
-        const rows = await response.json();
+        const rows = await client.request('linkup_disk_accounts?select=drive_identity&provider=eq.' + provider, {signal}, response => response.json());
         if (rows[0]?.drive_identity !== identity) {
             throw new Error('Подключите тот же аккаунт диска и OAuth-приложение, что на первом устройстве');
         }

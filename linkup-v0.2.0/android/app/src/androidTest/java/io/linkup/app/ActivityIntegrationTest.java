@@ -18,6 +18,13 @@ import static org.junit.Assert.*;
 
 @RunWith(AndroidJUnit4.class)
 public class ActivityIntegrationTest {
+    @Test public void detectsWallClockJumpsAndRebootWithoutConfusingNormalElapsedTime() {
+        assertFalse(Collector.clockDiscontinuity(20000,15000,10000,5000));
+        assertTrue(Collector.clockDiscontinuity(26000,15000,10000,5000));
+        assertTrue(Collector.clockDiscontinuity(14000,15000,10000,5000));
+        assertTrue(Collector.clockDiscontinuity(20000,50,10000,5000));
+    }
+
     @Test public void recordsActualForegroundTransitionsWhileOffline() throws Exception {
         Assume.assumeTrue(Boolean.parseBoolean(InstrumentationRegistry.getArguments().getString("requireCutout")));
         var context=InstrumentationRegistry.getInstrumentation().getTargetContext();
@@ -59,6 +66,17 @@ public class ActivityIntegrationTest {
                     + "#actTimeline .time-dot[title*=\"com.android.settings\"]')!==null";
             waitTrue(scenario,settingsMark);
             MobileScreenshotTest.capture(scenario,"activity-local");
+            MobileUiTest.orient(scenario,true);
+            MobileScreenshotTest.capture(scenario,"activity-landscape");
+            try{
+                waitTrue(scenario,settingsMark+" && document.documentElement.scrollWidth<=innerWidth"
+                        + " && document.querySelector('#actTimeline').getBoundingClientRect().top<innerHeight");
+            }catch(AssertionError failure){
+                throw new AssertionError("Landscape Activity geometry: "+js(scenario,
+                        "[innerWidth,innerHeight,document.documentElement.scrollWidth,"
+                        + "document.querySelector('#actTimeline').getBoundingClientRect().toJSON()]"),failure);
+            }
+            MobileUiTest.orient(scenario,false);
             js(scenario,"document.querySelector('#actPrev').click();true");
             waitTrue(scenario,"document.querySelector('#actTimeline').textContent.includes('Нет записей за день')"
                     + " && !document.querySelector('#actToday').hidden"

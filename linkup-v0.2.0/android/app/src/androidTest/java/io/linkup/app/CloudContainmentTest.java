@@ -9,6 +9,46 @@ import static io.linkup.app.WebViewProbe.waitTrue;
 
 @RunWith(AndroidJUnit4.class)
 public class CloudContainmentTest {
+    @Test public void transferBatchRollsBackMetadataAndBlobOnIndexedDbConflict() throws Exception {
+        try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
+            waitTrue(scenario,MobileUiTest.READY);
+            js(scenario,"""
+                const original=crypto.randomUUID;
+                window.conflictId=crypto.randomUUID();
+                crypto.randomUUID=()=>window.conflictId;
+                document.querySelector('#message').value='Synthetic transaction conflict';
+                const files=document.querySelector('#files'), transfer=new DataTransfer();
+                transfer.items.add(new File(['synthetic'],'collision.txt',{type:'text/plain'}));
+                files.files=transfer.files;
+                files.dispatchEvent(new Event('change'));
+                document.querySelector('#send').click();
+                crypto.randomUUID=original;
+                true
+                """);
+            waitTrue(scenario,"document.querySelector('#toast').textContent.includes('Не удалось сохранить')"
+                    + " && !document.querySelector('#send').disabled"
+                    + " && document.querySelector('#message').value==='Synthetic transaction conflict'"
+                    + " && !document.querySelector('#staged').hidden");
+            js(scenario,"""
+                window.atomicTransfer='waiting';
+                const opening=indexedDB.open('linkup-v1',1);
+                opening.onerror=()=>window.atomicTransfer=String(opening.error);
+                opening.onsuccess=()=>{
+                    const connection=opening.result;
+                    const transaction=connection.transaction(['items','blobs'],'readonly');
+                    const item=transaction.objectStore('items').get('local:'+window.conflictId);
+                    const blob=transaction.objectStore('blobs').get('local:'+window.conflictId);
+                    transaction.oncomplete=()=>{
+                        window.atomicTransfer=[Boolean(item.result),Boolean(blob.result)].join(':');
+                        connection.close();
+                    };
+                };
+                true
+                """);
+            waitTrue(scenario,"window.atomicTransfer==='false:false'");
+        }
+    }
+
     @Test public void connectingDoesNotOptInOrUploadLocalDraft() throws Exception {
         try(ActivityScenario<MainActivity> scenario=ActivityScenario.launch(MainActivity.class)){
             waitTrue(scenario,MobileUiTest.READY);
@@ -78,7 +118,9 @@ public class CloudContainmentTest {
                     + "document.querySelector('#cloudInspector').open=true;"
                     + "document.querySelector('#probeSupabase').click();true");
             waitTrue(scenario,"(()=>{const d=document.querySelector('#cloudProbeStatus');"
-                    + "return d.textContent.includes('DNS') && !d.textContent.includes('.invalid')})()");
+                    + "return d.textContent.includes('DNS') && !d.textContent.includes('.invalid')"
+                    + " && d.getBoundingClientRect().bottom<=innerHeight})()");
+            MobileScreenshotTest.capture(scenario,"settings-dns-error");
         }
     }
 }

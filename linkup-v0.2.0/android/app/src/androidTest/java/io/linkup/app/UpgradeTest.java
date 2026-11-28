@@ -11,6 +11,9 @@ import org.junit.Assume;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import java.util.concurrent.atomic.AtomicReference;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
 
 import static io.linkup.app.WebViewProbe.js;
 import static io.linkup.app.WebViewProbe.waitTrue;
@@ -23,6 +26,32 @@ public class UpgradeTest {
     private static final String BUFFER = "window.upgradeProbe";
     private static final String STATE = "JSON.parse(localStorage.getItem('linkup.config')).deviceName";
     private static final String SESSION = "JSON.parse(localStorage.getItem('linkup.session')).user.id";
+
+    @Test public void builtInUpdaterAcceptsOnlyTheMatchingSignedCandidate() throws Exception {
+        Assume.assumeTrue("validate".equals(InstrumentationRegistry.getArguments().getString("upgradePhase")));
+        var instrumentation=InstrumentationRegistry.getInstrumentation();
+        var context=instrumentation.getTargetContext();
+        var manager=context.getPackageManager();
+        var current=manager.getPackageInfo(context.getPackageName(),PackageManager.GET_SIGNING_CERTIFICATES);
+        assertEquals(3,current.getLongVersionCode());
+        for(String asset:new String[]{"candidate.apk","wrong.apk"}){
+            File file=File.createTempFile("update-check-", ".apk", context.getCacheDir());
+            try(var input=instrumentation.getContext().getAssets().open(asset)){
+                Files.copy(input,file.toPath(),java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+                var info=manager.getPackageArchiveInfo(file.getPath(),PackageManager.GET_SIGNING_CERTIFICATES);
+                if("wrong.apk".equals(asset)){
+                    try{
+                        ReleaseUpdater.verifyPackage(current,info,4);
+                        org.junit.Assert.fail("Updater accepted a different signer");
+                    }catch(IOException expected){
+                        assertTrue(expected.getMessage().contains("Подпись"));
+                    }
+                }else{
+                    ReleaseUpdater.verifyPackage(current,info,4);
+                }
+            }finally{Files.deleteIfExists(file.toPath());}
+        }
+    }
 
     @Test public void retainsAppDataAcrossSignedUpgrade() throws Exception {
         String phase = InstrumentationRegistry.getArguments().getString("upgradePhase");

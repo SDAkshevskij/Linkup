@@ -1,6 +1,11 @@
 name: LinkUp release
 on:
   workflow_dispatch:
+    inputs:
+      version:
+        description: Expected versionName from the reviewed main commit
+        type: string
+        required: true
 permissions:
   contents: read
 concurrency:
@@ -20,6 +25,12 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v4
+      - name: Confirm the release version
+        env:
+          EXPECTED_VERSION: ${{ inputs.version }}
+        run: |
+          actual=$(sed -n 's/^versionName=//p' linkup-v0.2.0/version.properties)
+          test "$EXPECTED_VERSION" = "$actual"
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
@@ -58,6 +69,11 @@ jobs:
           fi
           cd "$RUNNER_TEMP/linkup-release"
           sha256sum -c SHA256SUMS
-          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --generate-notes \
+          awk -v version="## $tag" '
+            /^## / { if (show) exit; show = ($0 == version || index($0, version " — ") == 1); next }
+            show { print }
+          ' "$GITHUB_WORKSPACE/CHANGELOG.md" > release-notes.md
+          test -s release-notes.md
+          gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" --draft --notes-file release-notes.md \
             "LinkUp-Android-$code.apk" "LinkUp-Linux-$code.zip" SHA256SUMS
           gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --draft=false --latest
