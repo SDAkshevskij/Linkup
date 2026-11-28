@@ -100,7 +100,13 @@ jobs:
       - name: PostgreSQL Activity upload policy test
         run: |
           sudo systemctl start postgresql.service
-          sudo -u postgres psql -X -d postgres -f "$GITHUB_WORKSPACE/linkup-v0.2.0/tests/test_activity_policy.sql"
+          sql_fixtures=$(mktemp -d /tmp/linkup-policy.XXXXXX)
+          trap 'rm -r "$sql_fixtures"' EXIT
+          mkdir "$sql_fixtures/tests"
+          cp linkup-v0.2.0/schema.sql "$sql_fixtures/"
+          cp linkup-v0.2.0/tests/test_activity_policy.sql "$sql_fixtures/tests/"
+          chmod -R a+rX "$sql_fixtures"
+          sudo -u postgres psql -X -d postgres -f "$sql_fixtures/tests/test_activity_policy.sql"
       - name: Install Qt WebEngine test dependencies
         run: |
           sudo apt-get update
