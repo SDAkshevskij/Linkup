@@ -3,8 +3,9 @@
 ## Unreleased — Activity reliability and cloud containment
 
 - Repaired Android foreground bootstrap and Linux X11 diagnostics. Rendered local SQLite history independently of cloud access and moved source permissions into integrated controls.
-- Paused native cloud Activity and required separate account-scoped consent for legacy Transfer. Restricted transport to HTTPS/WSS and public Supabase keys. Preserved local history and added a credential-free Android connectivity probe.
-- Added real Android foreground and X11 focus integration tests, plus regression scenarios for consent and unsafe transport. [P0 verification](linkup-v0.2.0/P0-VERIFICATION.md)
+- Paused native cloud Activity and required separate account-scoped consent for legacy Transfer. Restricted transport to HTTPS/WSS and public Supabase keys. The repository's Supabase schema blocks authenticated Activity inserts from old clients when applied and preserves existing rows. Added a credential-free Android connectivity probe.
+- Added end-to-end Activity coverage from real OS events to the visible timeline on Android API 35 and Linux Xvfb/Openbox, plus regression scenarios for consent and unsafe transport. Physical-device and disposable-account checks are listed separately. [P0 verification](linkup-v0.2.0/P0-VERIFICATION.md)
+- Verified data retention across Android signed upgrade and Linux packaged upgrade, including incompatible signing and Linux startup rollback. Verified the Activity policy change on disposable PostgreSQL. [Implementation CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791)
 
 ## v0.2.1 — published
 
@@ -31,7 +32,5 @@
 
 ## Next release — planned / not yet implemented
 
-- P0: repair and verify real Activity collection on Android and Linux. Current automated tests do not prove real UsageEvents or X11 active-window sampling.
-- Add non-secret collector health diagnostics and true end-to-end activity tests.
-- Redesign Activity permissions/settings away from checkbox + button-per-permission forms; integrate permission flows into designed toggles/cards and move advanced cloud controls behind progressive disclosure.
+- Verify Activity collection on the owner's Android and Linux Mint devices and run two-way Transfer with a disposable cloud account.
 - Enforce the LinkUp product-design rule across the app: no default-looking scrollbars/raw controls/admin-form layouts in shipped user-facing surfaces.

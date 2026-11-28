@@ -34,19 +34,24 @@ The mobile changes merged into main at `853d475`. [PR #3](https://github.com/SDA
 
 ## Current work and handoff
 
-The branch `fix/activity-cloud-p0` starts at `bf1df8a`. The latest code-bearing main workflow passed at `853d475`. TASKS.md governs P0-A local Activity, P0-B legacy cloud containment, and P0-C Android connectivity and physical round-trip verification. E2EE and the local keyboard remain in P1. No production workflow is being dispatched. [Main CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46047931490)
+The P0 implementation commit is `499a067` on `fix/activity-cloud-p0`, based on `bf1df8a`. E2EE and the local keyboard remain in P1. No production workflow was dispatched. [PR #5](https://github.com/SDAkshevskij/Linkup/pull/5) · [Implementation CI](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791) · [Verified main baseline](https://github.com/SDAkshevskij/Linkup/actions/runs/46047931490)
 
-## Owner physical-device finding — Activity reliability
+### Implementation and handoff
 
-The owner granted Android Usage Access but reports that no Activity statistics are visible on either the physical Android phone or Linux Mint laptop. Treat this as a P0 functional defect, not as a UI-only issue.
+- Android reconstructs the foreground state from recent OS UsageEvents and counts time from opt-in onward. It uses the same SQLite history for collection while the screen is open and for JobScheduler. Linux distinguishes idle, unavailable tooling, stale agents and Wayland, and supervises the collector process.
+- The Activity timeline reads local history directly. Source controls show permission and collector state. An optional inspector exposes local health and excludes app names and exact activity times from copied summaries.
+- Native Activity upload and automatic clipboard sharing are paused. Legacy cloud Transfer requires accounts to opt in separately from login. HTTPS/WSS and public Supabase credentials are enforced. The checked-in schema also removes INSERT access to Activity for old clients and preserves owner access to existing rows. Applying the schema to a live project remains a separate owner action.
+- Android settings expose an unauthenticated native network probe with separate DNS, TLS, timeout and HTTP outcomes. WebView sign-in reports auth and schema separately. The cause of the owner's phone failure remains unresolved until this path is exercised on that phone.
+- After PR review, run the physical checklist on the owner's Android and a Mint X11 login with an isolated Supabase account and synthetic text/file. Retain local history when installing a compatible test build and collect the redacted report if Android fails. [Verification checklist](linkup-v0.2.0/P0-VERIFICATION.md)
 
-Code review on 2026-11-28 found:
-- Android Collector.configure() resets the usage cursor and clears app/screen state when collection is enabled. Collector.collect() then depends on future UsageEvents boundaries; immediately after enabling there can be no row until a later foreground transition. Activity-page smoke tests only verify that the page/status opens; upgrade tests seed SQLite directly. There is no current end-to-end test proving real UsageEvents -> SQLite -> timeline.
-- Android background collection is a periodic JobScheduler job; the UI path does call collect() when Activity is queried, so local collection should not depend on Supabase. The physical-device failure therefore needs collector-level diagnostics rather than cloud assumptions.
-- Linux app.py launches agent.py, and autostart is also installed. However agent.sample() converts xprintidle/xprop/X11 failures into None without recording the cause. The UI can therefore show collection enabled while zero samples are being produced. Current Linux tests call emit() directly and do not prove active-window sampling.
-- Local Activity rows are read independently of Supabase. A Supabase timeout may prevent cloud synchronization but should not by itself explain an empty local timeline.
+### Reproducible verification
 
-Next executor must first make collection observable and prove real end-to-end events on Android and Linux, then redesign the Activity settings/permission UX according to AGENTS.md. Do not hide a broken collector behind prettier UI.
+- `node --test tests/*.mjs` passed all 13 cases on CI. `python3 -m unittest discover -s tests -p 'test_*.py'` passed 10 tests locally and skipped the Qt/X11 integration cases, which require the CI display setup.
+- `gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest` passed with 0 errors and 10 Lint warnings. The JVM unit-test task reported `NO-SOURCE`. [Android reports](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786/artifacts/15256574325)
+- `bash ../tools/test-android-mobile.sh` passed on API 35 at 320 dp. Gesture navigation passed 10 tests with the separate upgrade case skipped. Three-button navigation passed its layout/IME test. The offline UsageEvents test checked native JobScheduler, SQLite, rendered history, revocation and the recovery action. The WebView test exercised legacy opt-in, opt-out and local transfer against mocked responses. The native DNS error used the operating system resolver. [Reports and screenshots](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786/artifacts/15256574325)
+- `bash ../tools/test-android-upgrade.sh` passed with a disposable signing key and versions 2 → 3. It retained Android preferences, local SQLite history, WebView settings/session and IndexedDB history/blob. Android rejected the separately signed APK. [Upgrade run and APK](https://github.com/SDAkshevskij/Linkup/actions/runs/46129655786)
+- `LINKUP_TEST_WEBENGINE=1 LINKUP_TEST_X11=1 LIBGL_ALWAYS_SOFTWARE=1 QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v` passed all 12 tests. It rendered the real X11 sample after collector restart and verified packaged upgrade storage and rollback. [Linux timeline screenshot](https://github.com/SDAkshevskij/Linkup/actions/runs/46130070300/artifacts/15257372229)
+- `psql -X -d postgres -f tests/test_activity_policy.sql` passed on disposable PostgreSQL. The fixture verifies legacy upload denial, owner access and isolation from a second account. [Linux and PostgreSQL job](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791/job/140933061754)
 
 
 ## Product-quality directive — 2026-11-28

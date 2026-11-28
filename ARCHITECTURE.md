@@ -6,7 +6,7 @@
 - `linkup-v0.2.0/ui/`: shared HTML/CSS/JS, IndexedDB transfer storage, cloud transports, daily activity UI.
 - `linkup-v0.2.0/schema.sql`: Supabase schema and RLS.
 - `linkup-v0.2.0/tests/`: JS logic/transport mock tests and Python Linux agent tests.
-- `.github/workflows/android.yml`: Android SDK 35 build, lint, JS tests, emulator smoke and signed upgrade tests, Linux Qt WebEngine upgrade tests, and diagnostic artifacts.
+- `.github/workflows/android.yml` builds and lints the APK, runs JS tests, Android emulator and signed upgrade tests, native X11 and Qt upgrade tests, and tests the Activity policy in PostgreSQL. It publishes diagnostic artifacts.
 - `.github/workflows/release.yml`: main-only release pipeline. Keeps release credentials in the protected environment and publishes the signed APK, the Linux installer and SHA-256 checksums after CI.
 - `linkup-v0.2.0/version.properties`: shared release name and numeric version code.
 
@@ -32,8 +32,9 @@ From repository root:
 cd linkup-v0.2.0
 node --test tests/*.mjs
 python3 -m unittest discover -s tests -p 'test_*.py'
-LINKUP_TEST_WEBENGINE=1 QT_QPA_PLATFORM=offscreen QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu \
-  /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py'
+LINKUP_TEST_WEBENGINE=1 LINKUP_TEST_X11=1 LIBGL_ALWAYS_SOFTWARE=1 \
+  QTWEBENGINE_CHROMIUM_FLAGS=--disable-gpu xvfb-run -a \
+  /usr/bin/python3 -m unittest discover -s tests -p 'test_*.py' -v
 cd android
 gradle :app:assembleDebug :app:lintDebug :app:testDebugUnitTest :app:assembleDebugAndroidTest
 # With an authorized connected test emulator:
@@ -42,7 +43,7 @@ gradle :app:connectedDebugAndroidTest
 bash ../tools/test-android-mobile.sh
 bash ../tools/test-android-upgrade.sh
 ```
-See nested README.md and ANDROID-CI.md for setup details. Verify current source and tool versions before changing the workflow. No real cloud tokens are required for mock/smoke tests.
+See nested README.md and ANDROID-CI.md for setup details. The PostgreSQL test runs `psql -X -d postgres -f tests/test_activity_policy.sql` on a fresh CI runner. Use a disposable cluster for local runs because the fixture sets up Supabase-compatible roles. No real cloud tokens are required for the automated tests.
 
 
 ## Verification philosophy
