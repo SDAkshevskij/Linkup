@@ -2,7 +2,7 @@
 
 ## Unreleased — S1 framing draft (not enabled)
 
-- Define a bounded versioned record wire format with Linux Python and Android Java codecs and a synthetic libsodium known-answer fixture. Isolated Python/JVM/native oracle tests passed; runtime encryption, device trust, replay protection, provider integration and release remain pending. [Handoff](S1_HANDOFF.md).
+- Define a bounded v1 record wire format with canonical assembly and explicitly untrusted parsing in Linux Python and Android Java. Anchor the synthetic fixture to pinned libsodium KDF/XChaCha expected vectors and RFC 8032 Ed25519, add wrong-signature/key/tamper checks, and run the JVM framing test plus libsodium oracle in CI. Runtime encryption/decryption, device trust/key storage, replay protection, provider integration and release remain pending. [Handoff](S1_HANDOFF.md) · [Security review](DIFFERENTIAL_REVIEW_REPORT.md).
 
 ## Unreleased — Activity reliability and cloud containment
 
