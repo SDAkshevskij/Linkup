@@ -31,7 +31,7 @@ Considered a seven-day ribbon with separate calendar and a compact day navigator
 | Scenario | Evidence |
 | --- | --- |
 | Open view across midnight, switch dates rapidly and request an archive during a delayed Qt-style callback | Three baseline RED failures followed by green regression checks. An obsolete response is delivered after returning to today. |
-| Stay on an explicit past day, retry a failed request and change time zone with a same-label request in flight | Controller tests cover duplicate refresh coalescing, superseded requests, retained same-day data and a successful retry. |
+| Stay on an explicit past day, retry a failed or unanswered request and change time zone with a same-label request in flight | Controller tests cover duplicate background refresh coalescing, a manual retry regression, superseded requests, retained same-day data and recovery. |
 | Clock gap at midnight, repeated or missing hours, a half-hour transition, a skipped calendar date and leap day | Named examples and 900 generated days/event placements in five time zones. Oracle uses numeric local Date construction and enumerated quarter-hour occupancy. The seed is recorded in the test. |
 | Empty archived day and return to today after real OS use | Native Android Settings/UsageEvents and Linux X11 fixture paths, SQLite, existing bridges and visible colored marks. Android uses an accessibility-window package wait around the real Settings transition. Local Mint 22.2 Xvfb passed all 12 tests. |
 | Small viewport, permission revoked and desktop | The Android suite captures local history, empty archive, calendar sheet and revoked access at 320 dp. The Qt fixture captures the same real row after the day round trip. |

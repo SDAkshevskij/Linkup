@@ -115,7 +115,7 @@ test('an explicit past day stays fixed after midnight and stays usable after a f
             kind: 'app', app: 'Browser', start_ms: requests[1].from + 10, end_ms: requests[1].from + 1020}]);
         clock('2024-03-02T00:05:00');
         window.linkupActivityResume();
-        get('actRefresh').onclick();
+        window.linkupActivityResume();
         await settle();
         assert.equal(requests.length, 3);
         assert.equal(requests[2].from, requests[1].from);
@@ -124,6 +124,19 @@ test('an explicit past day stays fixed after midnight and stays usable after a f
         get('actRefresh').onclick();
         await settle();
         await finish(requests[3]);
+        assert.equal(get('actApps').textContent, 0);
+    });
+});
+
+test('the refresh button lets the user recover from a local bridge request that never answers', async t => {
+    await withActivity(t, 'UTC', '2026-04-10T12:00:00Z', async ({requests, get, settle, finish}) => {
+        get('actRefresh').onclick();
+        await settle();
+        assert.equal(requests.length, 2);
+        await finish(requests[1]);
+        assert.equal(get('actApps').textContent, 0);
+        await finish(requests[0],[{device_id:'obsolete',device_name:'Old device',
+            kind:'app',app:'Old app',start_ms:requests[0].from+10,end_ms:requests[0].from+90}]);
         assert.equal(get('actApps').textContent, 0);
     });
 });

@@ -45,14 +45,14 @@ function moveDay(direction) {
 
 export function color(app){let h=0;for(const c of app)h=(h*31+c.charCodeAt(0))>>>0;return colors[h%colors.length];}
 export function intervalsUnion(rows){const sorted=rows.map(r=>[r.start_ms,r.end_ms]).sort((a,b)=>a[0]-b[0]);let total=0,last=null;for(const [a,b] of sorted){if(!last||a>last[1]){if(last)total+=last[1]-last[0];last=[a,b];}else last[1]=Math.max(last[1],b);}return total+(last?last[1]-last[0]:0);}
-async function refresh(){
+async function refresh({retry=false}={}){
     const today=todayKey();
     const next=activeDay(today);
     if (!selectedDay || next.key!==selectedDay || next.key>today) selectedDay=null;
     const day=selectedDay?next:localDay(today);
     updateDayControls(day,today);
     const changed=!range || range.from!==day.from || range.to!==day.to;
-    if (!changed && pending) return;
+    if (!changed && pending && !retry) return;
     const revision=++tick;
     pending=true;
     if (changed) {
@@ -272,7 +272,7 @@ export function initActivity(getConfig){
         $('actSelected').textContent='';
         render();
     };
-    $('actRefresh').onclick=refresh;
+    $('actRefresh').onclick=()=>refresh({retry:true});
     $('actSettings').onclick=async()=>{
         $('trackInfo').textContent='';
         $('trackDialog').showModal();
