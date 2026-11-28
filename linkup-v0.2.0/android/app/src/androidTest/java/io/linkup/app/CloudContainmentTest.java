@@ -14,19 +14,20 @@ public class CloudContainmentTest {
             waitTrue(scenario,MobileUiTest.READY);
             js(scenario,"""
                 window.atomicTransfer='waiting';
-                import('./db.js').then(async db=>{
+                import(location.origin+'/ui/db.js').then(async db=>{
                     const key='fixture:'+crypto.randomUUID();
                     const item={key,kind:'file',scope:'local'};
                     try{
                         await db.saveItems([{item,blob:new Blob(['synthetic'])},{item}]);
                         window.atomicTransfer='accepted duplicate';
                     }catch(error){
-                        window.atomicTransfer=error.name==='ConstraintError'
-                            && !(await db.get('items',key)) && !(await db.get('blobs',key));
+                        const itemExists=Boolean(await db.get('items',key));
+                        const blobExists=Boolean(await db.get('blobs',key));
+                        window.atomicTransfer=[error?.name,itemExists,blobExists].join(':');
                     }finally{await db.removeItem(key);}
-                }).catch(()=>{window.atomicTransfer=false});true
+                }).catch(error=>{window.atomicTransfer=String(error)});true
                 """);
-            waitTrue(scenario,"window.atomicTransfer===true");
+            waitTrue(scenario,"window.atomicTransfer==='ConstraintError:false:false'");
         }
     }
 

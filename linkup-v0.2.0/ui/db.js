@@ -22,7 +22,7 @@ async function tx(stores,mode,fn){
         let request,error;
         transaction.oncomplete=()=>resolve(request?.result);
         transaction.onerror=event=>{error??=event.target.error;};
-        transaction.onabort=()=>reject(transaction.error||error||Error('Хранилище недоступно'));
+        transaction.onabort=()=>reject(error||transaction.error||Error('Хранилище недоступно'));
         try{request=fn(transaction);}catch(failure){error=failure;transaction.abort();}
     });
 }
