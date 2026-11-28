@@ -1,34 +1,69 @@
 # S1 handoff — record framing draft
 
-Base inspected through GitHub: `SDAkshevskij/Linkup` main at `6937e0b2c380da32a936016a62996da93b8eb674`; P0 implementation CI run [46130074791](https://github.com/SDAkshevskij/Linkup/actions/runs/46130074791) succeeded (historical, not this change).
+Base: main 6937e0b2c380da32a936016a62996da93b8eb674. Work remains isolated in draft PR #6; no production route, release or cloud gate has been enabled.
 
-## Implemented and tested
-- SECURITY_PROTOCOL.md specifies a bounded canonical v1 record header, signature input and threat model; 1 MiB record cap and positive signed-long-compatible epochs are proposed interoperability decisions.
-- Native-platform framing codecs in Linux Python and Android Java. No production call sites, network requests, dependency changes, migrations, UI changes or changes to P0 containment. Parsing never authenticates a message.
-- Shared synthetic known-answer fixture using system libsodium 1.0.18: KDF contexts, XChaCha20-Poly1305-IETF, Ed25519 signatures; direct native oracle checks changed signed bytes, AAD, tag and key. Fixed fixture keys/nonces are not for production.
-- Fresh isolated test evidence: `cd linkup-v0.2.0 && python -m unittest discover -s tests -p test_secure_wire.py -v` — 7 passed (400 seeded roundtrips plus boundary/rejection cases). `python tests/generate_secure_wire_vector.py --check` — passed against libsodium 1.0.18. `javac --release 17 -d /tmp/linkup-jvm android/app/src/main/java/io/linkup/app/security/SecureWire.java tests/SecureWireTest.java && java -cp /tmp/linkup-jvm SecureWireTest` — passed (400 seeded cases plus literal/fixture, malformed, immutability and size limits).
-- RED evidence: test suite was written before implementation, initially failed to import missing Python module / compile missing Java class; then passed. This is initial missing-feature evidence, not a fully observed red/green cycle for every edge case.
+## What was re-reviewed and corrected
 
-## Skills and differential review
-- test-driven-development: test-first fixtures and boundary tests, explicit red/green evidence above.
-- property-based-testing: seeded generators and independent byte-order oracle; no new dependencies. No claim of shrinking or Hypothesis coverage.
-- differential-review: risk HIGH because format will be used at a cryptographic trust boundary. Reviewed new code for size bounds, UUID/epoch validation, immutable Java output, exact AAD/signature domain and no downgrade. There are zero production call sites in the new slice. No baseline safety code removed. Replay, trusted key lookup, protected storage, malformed payload handling and stale roster behavior are intentionally unimplemented; enabling sync is blocked. No external audit. Full repo blame/call graph and regression review not possible without a checkout. No known live exploit findings are published here.
-- verification-before-completion: scoped claims only; full repo suite, Android SDK/lint/emulator, actual PyNaCl/NDK binding, CI for this exact head, physical phone and Mint validation not run. Direct Git clone failed DNS in this environment; source archives could not be materialized. Source files and backlog were inspected via GitHub connector instead.
-- Open Source First: official libsodium and PyNaCl references consulted; test oracle uses installed libsodium 1.0.18 only. No upstream source copied; no production dependency pin or full audit completed. Keep mandated APIs and pin reviewed stable dependencies before runtime integration.
+A second security-focused review found five defects in the first draft:
+1. SecureWireTest.java was not executed by GitHub Actions.
+2. generate_secure_wire_vector.py was not executed by GitHub Actions.
+3. The LinkUp fixture was generated and checked by the same oracle without first anchoring that oracle to external known-answer vectors.
+4. The codec could parse a wire but had no canonical outbound assembler; future callers would have to concatenate crypto fields manually. The parser name also did not make its unauthenticated status obvious.
+5. Python signature_input accepted Header subclasses, allowing an overridden encode() to violate canonical signature bytes. The required differential-review report file was also missing.
 
-## Test matrix and outstanding gates
-| Case | Evidence |
+The branch now uses assemble + split_untrusted/splitUntrusted, exact signature sizing, strict Python Header type at the canonical boundary, and CI steps for the JVM codec and libsodium oracle. The oracle first checks a pinned libsodium KDF KAT, a pinned libsodium XChaCha20-Poly1305 KAT and RFC 8032 Ed25519 vector 1 before checking the synthetic LinkUp fixture.
+
+## Fresh local evidence
+
+Commands executed against the rewritten files:
+- python3 -m unittest discover -s tests -p 'test_secure_wire.py' -v — 8 passed, including 400 generated round trips, boundaries, canonical assembly and the Header-subclass regression.
+- python3 tests/generate_secure_wire_vector.py --check — passed on system libsodium 1.0.18: upstream KDF/XChaCha KATs, RFC8032, LinkUp fixture, tamper, wrong signature and wrong public key.
+- javac --release 17 ... SecureWire.java tests/SecureWireTest.java && java ... SecureWireTest tests/secure_wire_v1.properties — passed, including 400 generated cases, immutable snapshots, canonical assembly and size/rejection cases.
+
+RED evidence from this review:
+- The new Python assemble regression initially errored because assemble did not exist.
+- The forged Header regression initially failed because signature_input accepted the subclass.
+- The new JVM review test initially failed compilation because assemble, UntrustedParts and splitUntrusted did not exist.
+These then passed after the minimal production changes.
+
+Exact-head GitHub Actions evidence must still be read before any completion claim.
+
+## Open Source First decisions
+
+| Subtask | Decision | Exact source | Reason |
+|---|---|---|---|
+| Framing | Build/retain | Standard-library Python/Java only | Small deterministic surface; dependency would add risk |
+| KDF and XChaCha test anchors | Adapt expected vectors only | libsodium 8524e1f3129409416e66cb27c921d44fb70b4c87, test/default/kdf.*, test/default/aead_xchacha20poly1305.* | Independent call-shape/result check; ISC |
+| Ed25519 anchor | Reuse test vector | RFC 8032 vector 1 | Independent standard vector |
+| Production crypto | Adopt libsodium primitive APIs | libsodium, exact runtime pin pending | Mandated protocol primitives; do not reimplement |
+| Linux binding | Evaluate PyNaCl plus narrow binding | pyca/pynacl | Pending dependency/security review |
+| Android binding | Evaluate libsodium NDK/JNI/exact binding | jedisct1/libsodium | Pending dependency/security review |
+
+No production runtime dependency was added in this slice. CI installs distro libsodium only for the test oracle.
+
+## Skills applied
+
+- systematic-debugging: traced the missing CI boundaries and canonicalization issue before changes; root causes recorded above.
+- test-driven-development: added failing assemble/subclass/JVM API tests first, observed RED, then rewrote the codecs.
+- property-based-testing guidance: retained deterministic generated invariants without adding a new PBT dependency; no claim of shrinking/Hypothesis.
+- differential-review: high-risk review artifact is DIFFERENTIAL_REVIEW_REPORT.md; production blast radius remains zero because there are no runtime call sites.
+- verification-before-completion: local claims are limited to commands above; CI/device/runtime crypto claims remain separate.
+
+## Remaining gates
+
+| Case | State |
 |---|---|
-| Empty and max-length ciphertext framing; invalid version, UUID, epoch, nonce, truncation below minimum and oversized input | Python and JVM tests |
-| Canonical byte order, domain separation, shared native fixture, seeded variations, mutable input/output | Python/JVM tests; immutable Java snapshot |
-| Modified AAD/tag/key and all changed signature-input bytes | Native fixture oracle, not app integration |
-| S1 actual Linux PyNaCl and Android JNI encrypt/decrypt, upstream KAT, parser auth order | Pending |
-| S2 trust enrollment, expiry, revocation, protected keys, rotation, stale rosters | Pending |
-| S3 file chunks, final tag, interrupted stream, size and retry, cloud metadata | Pending |
-| S4 replay/dedup transaction, cloud cutover, rejection of plaintext routes, RLS | Pending |
-| S5 cross-device, restart/offline, malformed payload, wrong key/account, provider errors, actual outgoing requests | Pending |
-| Physical-device P0-A/C and live SQL P0-B | Owner/device/deployment actions; pending |
-| Local keyboard, clipboard, Activity redesign | Not implemented in this slice |
+| Canonical framing, malformed/bounds, external KATs, synthetic fixture | Implemented in this draft; exact-head CI pending/reviewed separately |
+| Linux PyNaCl/native authenticated encrypt/decrypt | Pending |
+| Android libsodium JNI/native authenticated encrypt/decrypt | Pending |
+| Trusted sender/epoch lookup before decryption | Pending |
+| Durable replay/dedup transaction | Pending |
+| S2 enrollment, proof of possession, key storage, revocation/rotation | Pending |
+| S3 secretstream files and all content routing | Pending |
+| S4 encrypted schema/provider cutover and plaintext rejection | Pending |
+| S5 cross-device/offline/restart/tamper/provider inspection | Pending |
+| Physical Android/Mint P0 checks | Pending owner/device validation |
 
-## Next actionable step for Codex
-Review the proposed wire limits and exact framing. Use a fresh checkout of latest main and a dedicated branch. Pin/audit libsodium and PyNaCl; implement the native authenticated record boundary with trusted sender/epoch checks, never return parsed-but-unverified data to the app. Add runtime crypto integration tests against the fixture, independent upstream known-answer vectors, and full CI. Then implement S2–S5 in dependency order. Keep all existing gates and no release without explicit approval. Do not mark any S1–S5 task complete from this patch.
+## Next actionable step
+
+Do not merge or enable this draft merely because framing CI is green. Next implement the authenticated record boundary on Linux and Android using pinned reviewed libsodium bindings: trusted account/sender/epoch lookup -> Ed25519 verification -> XChaCha20-Poly1305 decryption -> atomic replay/dedup + application effect. Add cross-platform crypto round trips and malformed/wrong-key/replay tests before wiring any cloud transport.
