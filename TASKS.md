@@ -26,7 +26,7 @@ Priority contract (owner): P0 = immediate blocker or urgent safety containment; 
 
 ## P1 — Secure end-to-end data channel (mandatory cloud-sync gate)
 
-S1 implementation draft: canonical record framing, native-platform codecs and synthetic known-answer fixture are available for review; no authenticated runtime boundary, enrollment, replay storage or cross-platform crypto integration is implemented. S1–S5 remain open. See [S1 handoff](S1_HANDOFF.md).
+S1 draft now contains canonical outbound assembly, explicitly untrusted parsing, shared Python/Java framing tests, and a synthetic fixture whose oracle is anchored to pinned libsodium KDF/XChaCha vectors plus RFC 8032 Ed25519. CI executes the JVM framing test and native oracle. No authenticated runtime boundary, key enrollment/storage, replay transaction, provider cutover or cross-platform runtime crypto is implemented; S1–S5 remain open. See [S1 handoff](S1_HANDOFF.md) and [security review](DIFFERENTIAL_REVIEW_REPORT.md).
 
 Owner scope clarification: protect all transmitted user data against network observers and cloud intermediaries. Local application history may remain plaintext under normal OS access controls; no application-level encryption of SQLite/IndexedDB, local files, indexes or caches is required. No legacy data migration, re-encryption or migration UI is required (there is no history to migrate). Keep cryptographic keys and authentication tokens in protected OS storage. Do not silently delete existing data or weaken unrelated safeguards.
 
