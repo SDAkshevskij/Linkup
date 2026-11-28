@@ -24,9 +24,14 @@ class UpdateTest(unittest.TestCase):
         self.addCleanup(temporary.cleanup)
         self.work = Path(temporary.name)
         self.base = self.work / "installation"
-        self.old = self.work / "old.zip"
+        baseline = os.environ.get("LINKUP_PUBLISHED_LINUX_BASELINE")
+        self.old = Path(baseline) if baseline else self.work / "old.zip"
         self.new = self.work / "new.zip"
-        package(self.old, version_code=3)
+        if baseline:
+            self.assertEqual(hashlib.sha256(self.old.read_bytes()).hexdigest(),
+                             "250da058ec0f7625885bbacb9fb02c77d505b8c3b45a821da80f53762f5e73e4")
+        else:
+            package(self.old, version_code=3)
         package(self.new, version_code=4)
         initial = self.work / "initial"
         initial.mkdir()

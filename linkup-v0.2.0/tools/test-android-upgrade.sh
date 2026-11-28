@@ -61,6 +61,12 @@ sign() {
   "$signer" verify "$2"
 }
 old="$legacy/app/build/outputs/apk/debug/app-debug.apk"
+if [[ $code == 4 ]]; then
+  [[ $previous == 3 ]]
+  old="${RUNNER_TEMP:?}/linkup-v0.2.1/LinkUp-Android-3.apk"
+  printf '%s  %s\n' 7ec9094e3f256734252541d1591c8dce06dcec5256a3d409e61c0c333cc6e70b "$old" | sha256sum -c
+  "$signer" verify "$old"
+fi
 new="$project/android/app/build/outputs/apk/release/app-release-unsigned.apk"
 tests=app/build/outputs/apk/androidTest/debug/app-debug-androidTest.apk
 sign test "$work/old.apk" "$old"
@@ -92,3 +98,8 @@ printf '%s\n' "$result"
 adb install -r "$released"
 adb install -r -t "$work/new-tests.apk"
 instrument verify "$code"
+if [[ $code == 4 ]]; then
+  out="$project/android/app/build/upgrade-candidate"
+  mkdir -p "$out"
+  cp "$work/linkup-release/"{LinkUp-Android-4.apk,LinkUp-Linux-4.zip,SHA256SUMS} "$out/"
+fi
